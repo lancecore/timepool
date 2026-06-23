@@ -1,0 +1,24 @@
+# ── Meeting Poll runtime — NEVER commit (contains the database, secrets, uploads) ──
+/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+_mp_pkg.zip
+
+# ── OS / editor cruft ──
+.DS_Store
+Thumbs.db
+*.swp
+*~
+*.log
+.idea/
+.vscode/
+
+# ── Claude Code / Claude Flow local tooling (not part of the app; kept out of this repo) ──
+.claude/
+.claude-flow/
+.swarm/
+.impeccable/
+.mcp.json
+ruvector.db
+CLAUDE.md
