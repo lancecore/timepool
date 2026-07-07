@@ -29,7 +29,7 @@ $hasLogo = (string)setting('logo_file', '') !== '';
   <div class="wrap"><div class="flash flash-<?= e($f['type']) ?>" role="status"><?= e($f['msg']) ?></div></div>
 <?php endforeach; ?>
 <main id="main" class="wrap narrow"><?= $content ?></main>
-<footer class="foot"><div class="wrap">Made with <a href="https://github.com/lancecore/timepool">TimePool</a> • Created by <a href="https://cascadiasouth.com"><img src="<?= asset_url('/assets/cascadiasouth.ico') ?>" alt="" class="foot-ico"> Cascadia South</a></div></footer>
+<footer class="foot"><div class="wrap">Made with <a href="https://github.com/lancecore/timepool">TimePool</a> • Prompted into existence by <img src="<?= asset_url('/assets/cascadiasouth.ico') ?>" alt="" class="foot-ico"> <a href="https://cascadiasouth.com">Cascadia South</a></div></footer>
 <script src="<?= asset_url('/assets/app.js') ?>" defer></script>
 </body>
 </html>
