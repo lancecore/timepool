@@ -30,6 +30,8 @@ $routes = [
     ['POST', '#^/polls/(\d+)/invite$#',            'poll_invite'],
     ['GET',  '/settings',                          'settings_form'],
     ['POST', '/settings',                          'settings_save'],
+    ['GET',  '/errors',                            'errors_page'],
+    ['POST', '/errors/clear',                      'errors_clear'],
     ['GET',  '/users',                             'users_list'],
     ['POST', '/users',                             'users_create'],
     ['POST', '#^/users/(\d+)/toggle$#',            'users_toggle'],

@@ -21,8 +21,21 @@ function fail_page(): void {
     echo '<!doctype html><meta charset="utf-8"><title>Something went wrong</title>'
         . '<div style="font-family:system-ui,sans-serif;max-width:480px;margin:14vh auto;text-align:center;color:#1a1a2e">'
         . '<h1 style="font-size:2rem">Something went wrong</h1>'
-        . '<p style="color:#8a8aa3">An unexpected error occurred. Please try again in a moment.</p></div>';
+        . '<p style="color:#8a8aa3">An unexpected error occurred. Please try again in a moment.</p>'
+        . '<p style="color:#8a8aa3;font-size:.85rem">Run this site? Sign in and check the error log linked from Settings.</p></div>';
     exit;
+}
+
+/** Last $bytes of a file, trimmed to whole lines (for surfacing logs in the UI). */
+function log_tail(string $path, int $bytes = 65536): string {
+    if (!is_file($path) || !($size = (int)filesize($path))) return '';
+    $fh = fopen($path, 'rb');
+    if (!$fh) return '';
+    if ($size > $bytes) fseek($fh, -$bytes, SEEK_END);
+    $s = (string)stream_get_contents($fh);
+    fclose($fh);
+    if ($size > $bytes && ($nl = strpos($s, "\n")) !== false) $s = substr($s, $nl + 1);
+    return $s;
 }
 
 /** Base path the app is installed under ('' for a subdomain root, '/meet' for a subfolder). */

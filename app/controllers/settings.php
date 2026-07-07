@@ -53,6 +53,24 @@ function handle_logo_upload(): void {
     }
 }
 
+/** Admin-readable error log (bootstrap points PHP's error_log at this file). */
+function errors_page(): void {
+    require_admin();
+    $path = DATA_DIR . '/error.log';
+    // Include the rotated generation so entries don't vanish right after a rotation.
+    $tail = log_tail($path . '.1', 32768) . log_tail($path);
+    view('errors', ['title' => 'Error log', 'tail' => $tail]);
+}
+
+function errors_clear(): void {
+    require_admin();
+    csrf_check();
+    @unlink(DATA_DIR . '/error.log');
+    @unlink(DATA_DIR . '/error.log.1');
+    flash('Error log cleared.', 'success');
+    redirect('/errors');
+}
+
 function users_list(): void {
     require_admin();
     view('users', ['title' => 'Organizers', 'users' => all_users()]);

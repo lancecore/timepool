@@ -60,3 +60,5 @@ $hasLogo = (string)setting('logo_file', '') !== '';
 
   <div class="form-actions"><button class="btn">Save settings</button></div>
 </form>
+
+<p class="muted small">Something broken? <a href="<?= url('/errors') ?>">View the error log</a> — handy when reporting an issue.</p>

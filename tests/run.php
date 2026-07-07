@@ -83,6 +83,15 @@ ok(url('/p/TOK/ics?slot=final') === '/meet/index.php?r=%2Fp%2FTOK%2Fics&slot=fin
 $GLOBALS['config']['pretty'] = true;
 ok(url('/reset?token=abc') === '/meet/reset?token=abc', 'pretty: ?token preserved');
 
+// --- Error log tail: bounded, whole lines, safe on missing files ---
+$logf = sys_get_temp_dir() . '/tp_test_log_' . getmypid() . '.log';
+file_put_contents($logf, str_repeat("filler line for the tail test\n", 3000)); // ~90KB
+$tail = log_tail($logf, 4096);
+ok(strlen($tail) > 0 && strlen($tail) <= 4096, 'log_tail is bounded');
+ok(str_starts_with($tail, 'filler line'), 'log_tail starts on a whole line');
+ok(log_tail($logf . '.nope') === '', 'log_tail of a missing file is empty');
+@unlink($logf);
+
 echo "\n$pass passed, $fail failed\n";
 @unlink($tmp); @unlink($tmp . '-wal'); @unlink($tmp . '-shm');
 exit($fail ? 1 : 0);
