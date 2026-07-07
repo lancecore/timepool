@@ -12,6 +12,14 @@ if (!function_exists('str_ends_with')) {
     function str_ends_with(string $h, string $n): bool { return $n === '' || substr($h, -strlen($n)) === $n; }
 }
 
+/** Cap a string at $n characters without splitting a multibyte char.
+ *  ext-mbstring is optional on budget hosts, so fall back to a /u regex. */
+function str_cap(string $s, int $n): string {
+    if (function_exists('mb_substr')) return mb_substr($s, 0, $n);
+    if (preg_match('/^.{0,' . $n . '}/us', $s, $m)) return $m[0];
+    return substr($s, 0, $n); // invalid UTF-8: byte cap beats storing it uncapped
+}
+
 /** HTML-escape for output. */
 function e($v): string { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'); }
 

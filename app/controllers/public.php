@@ -51,7 +51,7 @@ function public_respond(string $token): void {
 
     $name = trim((string)param('name', ''));
     if ($name === '') { keep_input(); flash('Please enter your name.', 'error'); redirect('/p/' . $token); }
-    if (mb_strlen($name) > 80) $name = mb_substr($name, 0, 80);
+    $name = str_cap($name, 80);
 
     $editToken = viewer_edit_token($poll);
     $existing = participant_by_token((int)$poll['id'], $editToken);
@@ -69,7 +69,7 @@ function public_respond(string $token): void {
         $choices[(int)$slot['id']] = (string)param('slot_' . $slot['id'], 'no');
     }
     $comment = trim((string)param('comment', ''));
-    if (mb_strlen($comment) > 500) $comment = mb_substr($comment, 0, 500);
+    $comment = str_cap($comment, 500);
 
     $newToken = save_response($poll, $name, $comment, $choices, $ip, $editToken ?: null);
     setcookie('tp_edit_' . $poll['id'], $newToken, [

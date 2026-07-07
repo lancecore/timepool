@@ -104,6 +104,11 @@ unset($_SESSION['old_input']);
 ok(old('name', 'fresh') === 'fresh', 'cleared stash falls back to the default');
 $_POST = [];
 
+// --- str_cap: input caps must not depend on ext-mbstring or split UTF-8 ---
+ok(str_cap('abcdef', 4) === 'abcd', 'str_cap trims ASCII');
+ok(str_cap('héllo', 10) === 'héllo', 'str_cap leaves short strings alone');
+ok(str_cap('ééééé', 3) === 'ééé', 'str_cap counts characters, not bytes');
+
 echo "\n$pass passed, $fail failed\n";
 @unlink($tmp); @unlink($tmp . '-wal'); @unlink($tmp . '-shm');
 exit($fail ? 1 : 0);
