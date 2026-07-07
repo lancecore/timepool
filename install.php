@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 /**
- * Meeting Poll — single-file installer / setup wizard.
+ * TimePool — single-file installer / setup wizard.
  * Upload alongside the app (or upload alone with RELEASE_URL set to fetch the package),
  * then open this file in a browser. Creates the SQLite database, the first admin, and config.
  */
@@ -18,8 +18,8 @@ require_once APP_DIR . '/helpers.php'; // e(), base_path() — safe, no DB
 $existing = is_file(CONFIG_FILE) ? (require CONFIG_FILE) : null;
 if (is_array($existing) && !empty($existing['installed'])) {
     render('Already installed', '<div class="card auth-card center"><h1>Already installed ✓</h1>
-        <p class="muted">Meeting Poll is set up on this server. For safety, delete <code>install.php</code>.</p>
-        <p><a class="btn" href="' . e(app_root_url()) . '">Open Meeting Poll</a></p></div>');
+        <p class="muted">TimePool is set up on this server. For safety, delete <code>install.php</code>.</p>
+        <p><a class="btn" href="' . e(app_root_url()) . '">Open TimePool</a></p></div>');
     exit;
 }
 
@@ -34,7 +34,7 @@ function requirements(): array {
         ['PHP 7.4 or newer', version_compare(PHP_VERSION, '7.4.0', '>='), 'You have ' . PHP_VERSION . '. Ask your host to enable PHP 7.4+ (8.1+ recommended).'],
         ['SQLite support (pdo_sqlite)', extension_loaded('pdo_sqlite'), 'Enable the pdo_sqlite PHP extension (most hosts have it).'],
         ['Writable folder', $dataWritable, 'Make the install folder writable (chmod 755) so the database can be created.'],
-        ['Application files present', is_dir(APP_DIR), 'Upload the full Meeting Poll package, not just install.php.'],
+        ['Application files present', is_dir(APP_DIR), 'Upload the full TimePool package, not just install.php.'],
     ];
 }
 
@@ -44,7 +44,7 @@ function fetch_app(): void {
         $GLOBALS['fetch_error'] = 'Automatic fetch is unavailable here. Please upload the full package manually.';
         return;
     }
-    $zip = ROOT_DIR . '/_mp_pkg.zip';
+    $zip = ROOT_DIR . '/_tp_pkg.zip';
     $data = @file_get_contents(RELEASE_URL);
     if ($data === false || @file_put_contents($zip, $data) === false) {
         $GLOBALS['fetch_error'] = 'Could not download the app package. Upload it manually instead.';
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'fetch
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canInstall) {
-    $orgName  = trim((string)($_POST['org_name'] ?? '')) ?: 'Meeting Poll';
+    $orgName  = trim((string)($_POST['org_name'] ?? '')) ?: 'TimePool';
     $adminName= trim((string)($_POST['admin_name'] ?? ''));
     $email    = strtolower(trim((string)($_POST['admin_email'] ?? '')));
     $pass     = (string)($_POST['admin_pass'] ?? '');
@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canInstall) {
 function probe_pretty(string $base): bool {
     $ctx = stream_context_create(['http' => ['timeout' => 5, 'ignore_errors' => true]]);
     $r = @file_get_contents($base . '/healthz', false, $ctx);
-    return is_string($r) && str_contains($r, 'MP_OK');
+    return is_string($r) && str_contains($r, 'TP_OK');
 }
 
 /* ---------- render ---------- */
@@ -155,13 +155,13 @@ function render(string $title, string $body): void {
         . '<title>' . e($title) . " · Setup</title><style>:root{--accent:#4f46e5}</style>"
         . "<link rel=\"icon\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f46e5'/%3E%3Cpath d='M8 17l5 5 11-12' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\">"
         . '<link rel="stylesheet" href="' . e($css) . '">'
-        . '<script>(function(){try{var t=localStorage.getItem("mp-theme");if(t)document.documentElement.dataset.theme=t;else if(matchMedia("(prefers-color-scheme:dark)").matches)document.documentElement.dataset.theme="dark";}catch(e){}})();</script>'
+        . '<script>(function(){try{var t=localStorage.getItem("tp-theme");if(t)document.documentElement.dataset.theme=t;else if(matchMedia("(prefers-color-scheme:dark)").matches)document.documentElement.dataset.theme="dark";}catch(e){}})();</script>'
         . '</head><body><main class="wrap narrow" style="padding-top:5vh">' . $body . '</main></body></html>';
 }
 
 ob_start();
 ?>
-<div class="page-head"><h1>Set up Meeting Poll</h1></div>
+<div class="page-head"><h1>Set up TimePool</h1></div>
 
 <div class="card">
   <h2>Server check</h2>
@@ -180,7 +180,7 @@ ob_start();
     <?php if (RELEASE_URL !== '' && class_exists('ZipArchive')): ?>
       <form method="post" class="mt"><input type="hidden" name="action" value="fetch"><button class="btn">Download &amp; install app files</button></form>
     <?php else: ?>
-      <p class="muted small mt">Upload the full Meeting Poll package into this folder, then reload.</p>
+      <p class="muted small mt">Upload the full TimePool package into this folder, then reload.</p>
     <?php endif; ?>
   <?php elseif (!$canInstall): ?>
     <p class="flash flash-error">Resolve the items above, then reload this page.</p>
@@ -215,7 +215,7 @@ ob_start();
   <details class="adv">
     <summary>Email setup (optional — you can skip and add it later)</summary>
     <div class="stack">
-      <p class="muted small">Meeting Poll works without email by sharing links. Add SMTP to send invites and notifications.</p>
+      <p class="muted small">TimePool works without email by sharing links. Add SMTP to send invites and notifications.</p>
       <div class="row-2">
         <label>SMTP host <input type="text" name="smtp_host" placeholder="smtp.example.org"></label>
         <label>Port <input type="number" name="smtp_port" value="587"></label>
@@ -233,9 +233,9 @@ ob_start();
     </div>
   </details>
 
-  <div class="form-actions"><button class="btn btn-block">Install Meeting Poll</button></div>
+  <div class="form-actions"><button class="btn btn-block">Install TimePool</button></div>
 </form>
 <script src="<?= e(base_path() . '/assets/app.js') ?>" defer></script>
 <?php endif; ?>
 <?php
-render('Set up Meeting Poll', ob_get_clean());
+render('Set up TimePool', ob_get_clean());

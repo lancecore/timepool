@@ -6,7 +6,7 @@ function ics_escape(string $s): string {
 }
 
 function ics_uid(array $poll, array $slot): string {
-    return 'mp-' . $poll['public_token'] . '-' . $slot['id'] . '@' . ($_SERVER['HTTP_HOST'] ?? 'meeting-poll');
+    return 'tp-' . $poll['public_token'] . '-' . $slot['id'] . '@' . ($_SERVER['HTTP_HOST'] ?? 'timepool');
 }
 
 /** Build a valid VCALENDAR for a chosen slot (timed or all-day). */
@@ -29,7 +29,7 @@ function ics_for_slot(array $poll, array $slot): string {
     }
 
     $lines = [
-        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Meeting Poll//EN', 'CALSCALE:GREGORIAN',
+        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//TimePool//EN', 'CALSCALE:GREGORIAN',
         'METHOD:PUBLISH', 'BEGIN:VEVENT', "UID:$uid", "DTSTAMP:$stamp", $dt,
         "SUMMARY:$summary",
     ];

@@ -1,6 +1,6 @@
 <?php /** @var string $content @var string $title */
 $me = current_user();
-$org = setting('org_name', 'Meeting Poll');
+$org = setting('org_name', 'TimePool');
 $hasLogo = (string)setting('logo_file', '') !== '';
 ?><!doctype html>
 <html lang="en" data-theme="light">
@@ -13,7 +13,7 @@ $hasLogo = (string)setting('logo_file', '') !== '';
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='<?= rawurlencode(accent()) ?>'/%3E%3Cpath d='M8 17l5 5 11-12' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>:root{--accent:<?= e(accent()) ?>}</style>
 <link rel="stylesheet" href="<?= asset_url('/assets/app.css') ?>">
-<script>(function(){try{var t=localStorage.getItem('mp-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme:dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<script>(function(){try{var t=localStorage.getItem('tp-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme:dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -44,7 +44,7 @@ $hasLogo = (string)setting('logo_file', '') !== '';
   <div class="wrap"><div class="flash flash-<?= e($f['type']) ?>" role="status"><?= e($f['msg']) ?></div></div>
 <?php endforeach; ?>
 <main id="main" class="wrap"><?= $content ?></main>
-<footer class="foot"><div class="wrap">Made with Meeting Poll · free for nonprofits</div></footer>
+<footer class="foot"><div class="wrap">Made with TimePool · free for nonprofits</div></footer>
 <script src="<?= asset_url('/assets/app.js') ?>" defer></script>
 </body>
 </html>

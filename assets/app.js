@@ -1,4 +1,4 @@
-/* Meeting Poll — progressive enhancement: theming, timezone conversion, slot builder, copy, confirm. */
+/* TimePool — progressive enhancement: theming, timezone conversion, slot builder, copy, confirm. */
 (function () {
   'use strict';
 
@@ -8,7 +8,7 @@
     if (!t) return;
     var cur = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = cur;
-    try { localStorage.setItem('mp-theme', cur); } catch (_) {}
+    try { localStorage.setItem('tp-theme', cur); } catch (_) {}
   });
 
   /* ---- Timezone handling ---- */
@@ -16,7 +16,7 @@
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (_) { return 'UTC'; }
   }
   function storedTz() {
-    try { return localStorage.getItem('mp-tz'); } catch (_) { return null; }
+    try { return localStorage.getItem('tp-tz'); } catch (_) { return null; }
   }
   var viewerTz = storedTz() || detectTz();
 
@@ -61,7 +61,7 @@
       sel.value = viewerTz;
       sel.addEventListener('change', function () {
         viewerTz = sel.value;
-        try { localStorage.setItem('mp-tz', viewerTz); } catch (_) {}
+        try { localStorage.setItem('tp-tz', viewerTz); } catch (_) {}
         document.querySelectorAll('[data-tz-picker]').forEach(function (s) { s.value = viewerTz; });
         renderTimes();
       });

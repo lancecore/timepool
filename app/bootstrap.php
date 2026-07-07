@@ -25,13 +25,13 @@ date_default_timezone_set('UTC');
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
 set_exception_handler(function (Throwable $e): void {
-    error_log('[meeting-poll] ' . $e);
+    error_log('[timepool] ' . $e);
     fail_page();
 });
 register_shutdown_function(function (): void {
     $err = error_get_last();
     if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
-        error_log('[meeting-poll] fatal: ' . $err['message']);
+        error_log('[timepool] fatal: ' . $err['message']);
         fail_page();
     }
 });
@@ -44,7 +44,7 @@ require APP_DIR . '/ics.php';
 require APP_DIR . '/notify.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_name('mp_session');
+    session_name('tp_session');
     session_set_cookie_params([
         'httponly' => true,
         'samesite' => 'Lax',

@@ -19,7 +19,7 @@ function send_mail(string $to, string $subject, string $html): bool {
     $pass   = (string)setting('smtp_pass', '');
     $secure = (string)setting('smtp_secure', 'tls'); // 'tls' | 'ssl' | 'none'
     $from   = (string)setting('smtp_from');
-    $fromName = (string)setting('org_name', 'Meeting Poll');
+    $fromName = (string)setting('org_name', 'TimePool');
 
     $remote = ($secure === 'ssl' ? 'ssl://' : '') . $host . ':' . $port;
     $ctx = stream_context_create(['ssl' => ['verify_peer' => true, 'verify_peer_name' => true]]);

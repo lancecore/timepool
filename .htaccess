@@ -1,4 +1,4 @@
-# Meeting Poll — front controller routing + hardening.
+# TimePool — front controller routing + hardening.
 Options -Indexes
 
 <IfModule mod_rewrite.c>

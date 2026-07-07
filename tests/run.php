@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
-/** Meeting Poll self-checks. Run: php tests/run.php */
+/** TimePool self-checks. Run: php tests/run.php */
 error_reporting(E_ALL);
 
 define('ROOT_DIR', dirname(__DIR__));
 define('APP_DIR', ROOT_DIR . '/app');
 define('DATA_DIR', sys_get_temp_dir());
 
-$tmp = sys_get_temp_dir() . '/mp_test_' . getmypid() . '.sqlite';
+$tmp = sys_get_temp_dir() . '/tp_test_' . getmypid() . '.sqlite';
 @unlink($tmp);
 $GLOBALS['config'] = ['db' => $tmp, 'pretty' => true];
 

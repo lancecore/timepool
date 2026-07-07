@@ -4,7 +4,7 @@ declare(strict_types=1);
 function home(): void { redirect(current_user() ? '/dashboard' : '/login'); }
 
 /** Used by the installer to detect whether clean URLs (mod_rewrite) work. */
-function healthz(): void { header('Content-Type: text/plain'); echo 'MP_OK'; }
+function healthz(): void { header('Content-Type: text/plain'); echo 'TP_OK'; }
 
 function login_form(): void {
     if (current_user()) redirect('/dashboard');

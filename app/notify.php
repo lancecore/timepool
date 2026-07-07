@@ -10,12 +10,12 @@ function absolute_url(string $path = '/'): string {
 }
 
 function email_layout(string $heading, string $bodyHtml): string {
-    $org = e(setting('org_name', 'Meeting Poll'));
+    $org = e(setting('org_name', 'TimePool'));
     return "<div style=\"font-family:system-ui,Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a2e\">"
         . "<h2 style=\"color:#1a1a2e\">" . e($heading) . "</h2>"
         . $bodyHtml
         . "<hr style=\"border:none;border-top:1px solid #e5e5ef;margin:24px 0\">"
-        . "<p style=\"color:#8a8aa3;font-size:13px\">Sent by {$org} · Meeting Poll</p></div>";
+        . "<p style=\"color:#8a8aa3;font-size:13px\">Sent by {$org} · TimePool</p></div>";
 }
 
 function valid_email(string $e): bool { return (bool)filter_var($e, FILTER_VALIDATE_EMAIL); }

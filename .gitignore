@@ -1,9 +1,9 @@
-# ── Meeting Poll runtime — NEVER commit (contains the database, secrets, uploads) ──
+# ── TimePool runtime — NEVER commit (contains the database, secrets, uploads) ──
 /data/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
-_mp_pkg.zip
+_tp_pkg.zip
 
 # ── OS / editor cruft ──
 .DS_Store

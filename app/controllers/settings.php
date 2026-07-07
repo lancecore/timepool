@@ -10,7 +10,7 @@ function settings_save(): void {
     require_admin();
     csrf_check();
 
-    set_setting('org_name', trim((string)param('org_name', '')) ?: 'Meeting Poll');
+    set_setting('org_name', trim((string)param('org_name', '')) ?: 'TimePool');
     $accent = trim((string)param('accent', ''));
     set_setting('accent', preg_match('/^#[0-9a-fA-F]{6}$/', $accent) ? $accent : '#4f46e5');
     $tz = trim((string)param('default_tz', 'UTC'));
@@ -31,7 +31,7 @@ function settings_save(): void {
 
     if (trim((string)param('test_email', '')) !== '') {
         $to = trim((string)param('test_email'));
-        $ok = send_mail($to, 'Meeting Poll test email', email_layout('It works', '<p>SMTP is configured correctly.</p>'));
+        $ok = send_mail($to, 'TimePool test email', email_layout('It works', '<p>SMTP is configured correctly.</p>'));
         flash($ok ? "Test email sent to $to." : 'Could not send the test email — check the SMTP settings.', $ok ? 'success' : 'error');
     } else {
         flash('Settings saved.', 'success');

@@ -2,7 +2,7 @@
 <div class="card auth-card">
   <div class="auth-brand"><?= brandmark() ?></div>
   <h1>Sign in</h1>
-  <p class="muted">Organizer access for <?= e(setting('org_name', 'Meeting Poll')) ?>.</p>
+  <p class="muted">Organizer access for <?= e(setting('org_name', 'TimePool')) ?>.</p>
   <form method="post" action="<?= url('/login') ?>" class="stack">
     <?= csrf_field() ?>
     <label>Email

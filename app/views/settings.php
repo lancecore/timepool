@@ -10,7 +10,7 @@ $hasLogo = (string)setting('logo_file', '') !== '';
   <h2>Branding</h2>
   <div class="row-2">
     <label>Organization name
-      <input type="text" name="org_name" value="<?= e(setting('org_name', 'Meeting Poll')) ?>" maxlength="80">
+      <input type="text" name="org_name" value="<?= e(setting('org_name', 'TimePool')) ?>" maxlength="80">
     </label>
     <label>Accent color
       <input type="color" name="accent" value="<?= e(accent()) ?>">

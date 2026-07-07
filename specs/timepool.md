@@ -1,4 +1,4 @@
-# Meeting Poll
+# TimePool
 
 ## Objective
 

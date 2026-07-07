@@ -10,7 +10,7 @@ function load_public_poll(string $token): array {
 function viewer_edit_token(array $poll): string {
     $fromGet = (string)param('edit', '');
     if ($fromGet !== '') return $fromGet;
-    return (string)($_COOKIE['mp_edit_' . $poll['id']] ?? '');
+    return (string)($_COOKIE['tp_edit_' . $poll['id']] ?? '');
 }
 
 function public_poll(string $token): void {
@@ -71,7 +71,7 @@ function public_respond(string $token): void {
     if (mb_strlen($comment) > 500) $comment = mb_substr($comment, 0, 500);
 
     $newToken = save_response($poll, $name, $comment, $choices, $ip, $editToken ?: null);
-    setcookie('mp_edit_' . $poll['id'], $newToken, [
+    setcookie('tp_edit_' . $poll['id'], $newToken, [
         'expires' => time() + 31536000, 'path' => base_path() ?: '/', 'httponly' => true, 'samesite' => 'Lax',
     ]);
     if (!$existing) notify_new_response($poll, $name);

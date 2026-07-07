@@ -8,7 +8,7 @@ function view(string $name, array $data = [], string $layout = 'layout'): void {
     ob_start();
     include APP_DIR . "/views/$name.php";
     $content = ob_get_clean();
-    $title = isset($data['title']) ? ($data['title'] . ' · ' . setting('org_name', 'Meeting Poll')) : setting('org_name', 'Meeting Poll');
+    $title = isset($data['title']) ? ($data['title'] . ' · ' . setting('org_name', 'TimePool')) : setting('org_name', 'TimePool');
     include APP_DIR . "/views/{$layout}.php";
 }
 
