@@ -32,6 +32,7 @@ function settings_save(): void {
     if (trim((string)param('test_email', '')) !== '') {
         $to = trim((string)param('test_email'));
         $ok = send_mail($to, 'TimePool test email', email_layout('It works', '<p>SMTP is configured correctly.</p>'));
+        if (!$ok) keep_input(); // keep the address in the field for the retry
         flash($ok ? "Test email sent to $to." : 'Could not send the test email — check the SMTP settings.', $ok ? 'success' : 'error');
     } else {
         flash('Settings saved.', 'success');
@@ -82,9 +83,9 @@ function users_create(): void {
     $email = strtolower(trim((string)param('email', '')));
     $name = trim((string)param('name', ''));
     $pw = (string)param('password', '');
-    if (!valid_email($email)) { flash('Enter a valid email address.', 'error'); redirect('/users'); }
-    if (strlen($pw) < 8) { flash('Password must be at least 8 characters.', 'error'); redirect('/users'); }
-    if (user_by_email($email)) { flash('A user with that email already exists.', 'error'); redirect('/users'); }
+    if (!valid_email($email)) { keep_input(); flash('Enter a valid email address.', 'error'); redirect('/users'); }
+    if (strlen($pw) < 8) { keep_input(); flash('Password must be at least 8 characters.', 'error'); redirect('/users'); }
+    if (user_by_email($email)) { keep_input(); flash('A user with that email already exists.', 'error'); redirect('/users'); }
     $role = param('role') === 'admin' ? 'admin' : 'organizer';
     create_user($email, $pw, $name, $role);
     flash('Organizer added.', 'success');

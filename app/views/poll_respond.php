@@ -29,7 +29,7 @@ $showForm = !$closed && !$final;
       <?php if ($viewer): ?><p class="flash flash-success" role="status">You're editing your saved response.</p><?php endif; ?>
 
       <label>Your name
-        <input type="text" name="name" value="<?= e($viewer['name'] ?? '') ?>" required maxlength="80" placeholder="e.g. Alex Rivera" autocomplete="name">
+        <input type="text" name="name" value="<?= e(old('name', $viewer['name'] ?? '')) ?>" required maxlength="80" placeholder="e.g. Alex Rivera" autocomplete="name">
       </label>
 
       <div class="hp" aria-hidden="true">
@@ -42,7 +42,7 @@ $showForm = !$closed && !$final;
       </div>
 
       <div class="resp-slots">
-        <?php foreach ($slots as $s): $cur = $viewerChoices[(int)$s['id']] ?? ''; ?>
+        <?php foreach ($slots as $s): $cur = old('slot_' . (int)$s['id'], $viewerChoices[(int)$s['id']] ?? ''); ?>
           <div class="resp-slot">
             <div class="resp-when"><time class="js-time"<?= time_attr($s) ?>><?= e(slot_label($s, $poll['organizer_tz'])) ?></time></div>
             <div class="seg" role="radiogroup" aria-label="Availability for <?= e(slot_label($s, $poll['organizer_tz'])) ?>">
@@ -56,7 +56,7 @@ $showForm = !$closed && !$final;
       </div>
 
       <label>Comment <span class="muted small">(optional)</span>
-        <textarea name="comment" rows="2" maxlength="500" placeholder="Anything the organizer should know?"><?= e($viewer['comment'] ?? '') ?></textarea>
+        <textarea name="comment" rows="2" maxlength="500" placeholder="Anything the organizer should know?"><?= e(old('comment', $viewer['comment'] ?? '')) ?></textarea>
       </label>
 
       <button type="submit" class="btn btn-block"><?= $viewer ? 'Update my response' : 'Submit availability' ?></button>

@@ -22,6 +22,7 @@ function fail_page(): void {
         . '<div style="font-family:system-ui,sans-serif;max-width:480px;margin:14vh auto;text-align:center;color:#1a1a2e">'
         . '<h1 style="font-size:2rem">Something went wrong</h1>'
         . '<p style="color:#8a8aa3">An unexpected error occurred. Please try again in a moment.</p>'
+        . '<p><a href="javascript:history.back()" style="color:#4f46e5">&larr; Go back and try again</a></p>'
         . '<p style="color:#8a8aa3;font-size:.85rem">Run this site? Sign in and check the error log linked from Settings.</p></div>';
     exit;
 }
@@ -90,6 +91,20 @@ function param(string $key, $default = null) { return $_POST[$key] ?? $_GET[$key
 function flash(string $msg, string $type = 'success'): void { $_SESSION['flash'][] = ['msg' => $msg, 'type' => $type]; }
 function take_flash(): array { $f = $_SESSION['flash'] ?? []; unset($_SESSION['flash']); return $f; }
 
+/** Stash the submitted form (minus secrets) so the page after an error redirect can repopulate it. */
+function keep_input(): void {
+    if (session_status() !== PHP_SESSION_ACTIVE || !$_POST) return;
+    $p = $_POST;
+    unset($p['_csrf'], $p['password'], $p['smtp_pass'], $p['website']);
+    $_SESSION['old_input'] = $p;
+}
+
+/** Previously submitted value for a field (one-shot: view() clears the stash after rendering). */
+function old(string $key, string $default = ''): string {
+    $v = $_SESSION['old_input'][$key] ?? null;
+    return is_string($v) ? $v : $default;
+}
+
 function csrf_token(): string {
     if (empty($_SESSION['csrf'])) $_SESSION['csrf'] = bin2hex(random_bytes(32));
     return $_SESSION['csrf'];
@@ -98,8 +113,12 @@ function csrf_field(): string { return '<input type="hidden" name="_csrf" value=
 function csrf_check(): void {
     $t = $_POST['_csrf'] ?? '';
     if (!is_string($t) || !hash_equals(csrf_token(), $t)) {
-        http_response_code(419);
-        exit('Your session expired or the form token was invalid. Please go back and try again.');
+        // Expired session: send them back to the form (fresh token) with their entries kept.
+        keep_input();
+        flash('Your session expired, so that was not saved. Please try again — your entries have been kept.', 'error');
+        $ref = (string)($_SERVER['HTTP_REFERER'] ?? '');
+        $sameHost = $ref !== '' && parse_url($ref, PHP_URL_HOST) === strtok((string)($_SERVER['HTTP_HOST'] ?? ''), ':');
+        redirect($sameHost ? $ref : '/');
     }
 }
 

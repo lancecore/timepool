@@ -167,7 +167,7 @@ function poll_invite(string $id): void {
     $raw = (string)param('emails', '');
     $emails = preg_split('/[\s,;]+/', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
     $added = add_invites((int)$poll['id'], $emails);
-    if (!$added) { flash('No new valid email addresses found.', 'error'); redirect('/polls/' . $poll['id']); }
+    if (!$added) { keep_input(); flash('No new valid email addresses found.', 'error'); redirect('/polls/' . $poll['id']); }
     if (mailer_configured()) {
         $sent = send_invites($poll, $added);
         flash("$sent invite(s) emailed.", 'success');

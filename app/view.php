@@ -8,6 +8,7 @@ function view(string $name, array $data = [], string $layout = 'layout'): void {
     ob_start();
     include APP_DIR . "/views/$name.php";
     $content = ob_get_clean();
+    unset($_SESSION['old_input']); // old() stash is one-shot: consumed by this render
     $title = isset($data['title']) ? ($data['title'] . ' · ' . setting('org_name', 'TimePool')) : setting('org_name', 'TimePool');
     include APP_DIR . "/views/{$layout}.php";
 }

@@ -6,7 +6,7 @@
   <form method="post" action="<?= url('/login') ?>" class="stack">
     <?= csrf_field() ?>
     <label>Email
-      <input type="email" name="email" autocomplete="username" required autofocus>
+      <input type="email" name="email" value="<?= e(old('email')) ?>" autocomplete="username" required autofocus>
     </label>
     <label>Password
       <input type="password" name="password" autocomplete="current-password" required>

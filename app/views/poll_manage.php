@@ -82,7 +82,7 @@ $publicUrl = absolute_url('/p/' . $poll['public_token']);
     <?php if (!mailer_configured()): ?><p class="muted small">Email isn't set up, so invites are saved but not sent — share the link above instead.</p><?php endif; ?>
     <form method="post" action="<?= url('/polls/' . $poll['id'] . '/invite') ?>" class="stack">
       <?= csrf_field() ?>
-      <textarea name="emails" rows="2" placeholder="alice@example.org, bob@example.org"></textarea>
+      <textarea name="emails" rows="2" placeholder="alice@example.org, bob@example.org"><?= e(old('emails')) ?></textarea>
       <button class="btn btn-sm btn-ghost"><?= mailer_configured() ? 'Send invites' : 'Save invites' ?></button>
     </form>
     <?php if ($invites): ?>

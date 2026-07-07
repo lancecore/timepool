@@ -33,12 +33,14 @@ if (is_file(DATA_DIR . '/error.log') && (int)@filesize(DATA_DIR . '/error.log') 
 }
 set_exception_handler(function (Throwable $e): void {
     error_log('[timepool] ' . $e);
+    keep_input(); // a POST that blew up re-renders with the user's entries intact
     fail_page();
 });
 register_shutdown_function(function (): void {
     $err = error_get_last();
     if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
         error_log('[timepool] fatal: ' . $err['message']);
+        keep_input();
         fail_page();
     }
 });

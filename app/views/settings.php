@@ -55,7 +55,7 @@ $hasLogo = (string)setting('logo_file', '') !== '';
     <label>From address <input type="email" name="smtp_from" value="<?= e(setting('smtp_from', '')) ?>" placeholder="noreply@example.org"></label>
   </div>
   <label>Send a test email to <span class="muted small">(optional — leave blank to just save)</span>
-    <input type="email" name="test_email" placeholder="you@example.org" autocomplete="off">
+    <input type="email" name="test_email" value="<?= e(old('test_email')) ?>" placeholder="you@example.org" autocomplete="off">
   </label>
 
   <div class="form-actions"><button class="btn">Save settings</button></div>

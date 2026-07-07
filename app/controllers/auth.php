@@ -14,12 +14,14 @@ function login_form(): void {
 function login_submit(): void {
     csrf_check();
     if (!rate_ok(client_ip(), 10, 60)) {
+        keep_input();
         flash('Too many sign-in attempts. Please wait a minute and try again.', 'error');
         redirect('/login');
     }
     if (login_attempt((string)param('email', ''), (string)param('password', ''))) {
         redirect('/dashboard');
     }
+    keep_input();
     flash('Incorrect email or password.', 'error');
     redirect('/login');
 }

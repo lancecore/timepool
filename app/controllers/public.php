@@ -47,10 +47,10 @@ function public_respond(string $token): void {
     if (trim((string)param('website', '')) !== '') { redirect('/p/' . $token); }
 
     $ip = client_ip();
-    if (!rate_ok($ip)) { flash('Too many submissions from your connection. Please wait a minute and try again.', 'error'); redirect('/p/' . $token); }
+    if (!rate_ok($ip)) { keep_input(); flash('Too many submissions from your connection. Please wait a minute and try again.', 'error'); redirect('/p/' . $token); }
 
     $name = trim((string)param('name', ''));
-    if ($name === '') { flash('Please enter your name.', 'error'); redirect('/p/' . $token); }
+    if ($name === '') { keep_input(); flash('Please enter your name.', 'error'); redirect('/p/' . $token); }
     if (mb_strlen($name) > 80) $name = mb_substr($name, 0, 80);
 
     $editToken = viewer_edit_token($poll);
@@ -58,6 +58,7 @@ function public_respond(string $token): void {
     if (!$existing) {
         $cap = (int)setting('max_participants', '500');
         if (count(participants_for_poll((int)$poll['id'])) >= $cap) {
+            keep_input();
             flash('This poll has reached its response limit.', 'error');
             redirect('/p/' . $token);
         }

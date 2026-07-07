@@ -17,6 +17,7 @@ require APP_DIR . '/auth.php';
 require APP_DIR . '/poll.php';
 require APP_DIR . '/ics.php';
 date_default_timezone_set('UTC');
+session_start(); // before any output; needed by the keep-input checks below
 
 $pass = 0; $fail = 0;
 function ok(bool $cond, string $msg): void {
@@ -91,6 +92,17 @@ ok(strlen($tail) > 0 && strlen($tail) <= 4096, 'log_tail is bounded');
 ok(str_starts_with($tail, 'filler line'), 'log_tail starts on a whole line');
 ok(log_tail($logf . '.nope') === '', 'log_tail of a missing file is empty');
 @unlink($logf);
+
+// --- Keep-input: failed POSTs repopulate forms, secrets never stashed ---
+$_POST = ['name' => 'Alice', 'password' => 'hunter22', '_csrf' => 't', 'website' => '', 'slot_9' => 'maybe'];
+keep_input();
+ok(old('name') === 'Alice', 'old() returns the stashed field');
+ok(old('slot_9') === 'maybe', 'old() works for dynamic slot fields');
+ok(old('password', 'X') === 'X', 'passwords are never stashed');
+ok(old('_csrf', 'X') === 'X', 'csrf token is never stashed');
+unset($_SESSION['old_input']);
+ok(old('name', 'fresh') === 'fresh', 'cleared stash falls back to the default');
+$_POST = [];
 
 echo "\n$pass passed, $fail failed\n";
 @unlink($tmp); @unlink($tmp . '-wal'); @unlink($tmp . '-shm');
