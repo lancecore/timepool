@@ -352,6 +352,12 @@ cd /var/www/timepool && git pull
 
 Run it as the user that owns the files — a `sudo git pull` trips git's "dubious ownership" guard and leaves root-owned files behind that break the next pull. A pull may restore a deleted `install.php`; that's harmless, since it refuses to run on an installed site.
 
+Git writes updated files using your shell's **umask**. If the deploy user's umask is restrictive (e.g. `077`), pulled files come out unreadable to PHP-FPM and pages go blank. Set `umask 022` in the deploy user's `~/.profile` and `~/.bashrc` (above any non-interactive early-return line), or make the deploy command self-contained:
+
+```bash
+sudo -u <owner> sh -c 'umask 022 && git -C /var/www/timepool pull'
+```
+
 **Without git (shared hosting):**
 
 1. Download the latest ZIP from GitHub (a tagged release, or Code → Download ZIP).
@@ -371,6 +377,18 @@ Make the install folder writable (e.g. `chmod 755`) so `data/` and the SQLite fi
 
 **Logo or assets not loading.**
 Check that `assets/` was uploaded and is web-readable. The logo is served via the `/logo` route from `data/uploads/`.
+
+**Blank page after a `git pull`.**
+Almost always file permissions: git writes updated files with the deploy user's umask, and a restrictive one (`077`) makes them unreadable to PHP-FPM. Confirm with `ls -l app/views/layout.php` (should be `-rw-r--r--`), check the web server's error log for `Failed to open stream: Permission denied`, then fix the code files — leaving `data/` alone so its secrets stay owner-only:
+
+```bash
+cd /var/www/timepool
+find app assets docs -type f -exec chmod 644 {} +
+find app assets docs -type d -exec chmod 755 {} +
+chmod 644 index.php install.php .htaccess
+```
+
+Prevent it by setting `umask 022` for the deploy user (see [Updating](#updating)).
 
 **Email isn't sending.**
 Email is optional. Configure SMTP under **Settings → Email** and use the *test email* field. STARTTLS uses port 587; SSL/TLS uses 465. Without email, the app still works fully by sharing links.
