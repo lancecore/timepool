@@ -327,15 +327,7 @@ Notes for any host:
 - Point the subdomain's document root at the uploaded folder. A subfolder works too.
 - Make the folder writable so `data/` can be created (typically `0755`).
 - Keep HTTPS on. The session cookie is marked `Secure` automatically when served over HTTPS.
-- On a VPS with Nginx instead of Apache, route all non-file requests to `index.php` and deny `/app` and `/data`. Example location block:
-
-  ```nginx
-  location / { try_files $uri $uri/ /index.php?$query_string; }
-  location ~ ^/(app|data)/ { deny all; }
-  location ~ \.sqlite { deny all; }
-  ```
-
-  (Or skip the rewrite rules entirely and let the app run with clean URLs off. It works without them.)
+- On a VPS with Nginx instead of Apache, use the full server block in [`docs/nginx.example.conf`](docs/nginx.example.conf). It routes non-file requests to `index.php` and denies `/app` and `/data` with `^~` prefix locations — plain regex `deny` blocks can be out-ordered by the `\.php$` handler, which would let `/data/config.php` reach PHP. (Or skip the rewrite rules entirely and let the app run with clean URLs off. It works without them.)
 
 ---
 
@@ -350,9 +342,22 @@ Everything that matters lives in **`data/`**.
 
 ## Updating
 
-1. Back up `data/` (see above).
-2. Replace the app files (`app/`, `assets/`, `index.php`, `.htaccess`) with the new version. **Leave `data/` untouched.**
-3. Load any page. `app/db.php` runs its `CREATE TABLE IF NOT EXISTS` migrations automatically, and running them twice is safe.
+Back up `data/` first (see above). All runtime state lives in `data/`, which is gitignored — an update only ever replaces code.
+
+**With git (VPS / SSH access):**
+
+```bash
+cd /var/www/timepool && git pull
+```
+
+Run it as the user that owns the files — a `sudo git pull` trips git's "dubious ownership" guard and leaves root-owned files behind that break the next pull. A pull may restore a deleted `install.php`; that's harmless, since it refuses to run on an installed site.
+
+**Without git (shared hosting):**
+
+1. Download the latest ZIP from GitHub (a tagged release, or Code → Download ZIP).
+2. Upload it over the existing install, replacing `app/`, `assets/`, `index.php`, and `.htaccess`. **Leave `data/` untouched.**
+
+Either way, load any page afterwards. `app/db.php` runs its `CREATE TABLE IF NOT EXISTS` migrations automatically, and running them twice is safe.
 
 ---
 

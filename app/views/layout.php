@@ -11,8 +11,8 @@ $hasLogo = (string)setting('logo_file', '') !== '';
 <title><?= e($title) ?></title>
 <meta name="theme-color" content="<?= e(accent()) ?>">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='<?= rawurlencode(accent()) ?>'/%3E%3Cpath d='M8 17l5 5 11-12' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<style>:root{--accent:<?= e(accent()) ?>}</style>
 <link rel="stylesheet" href="<?= asset_url('/assets/app.css') ?>">
+<style>:root{--accent:<?= e(accent()) ?>}</style>
 <script>(function(){try{var t=localStorage.getItem('tp-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme:dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
 </head>
 <body>
@@ -44,7 +44,7 @@ $hasLogo = (string)setting('logo_file', '') !== '';
   <div class="wrap"><div class="flash flash-<?= e($f['type']) ?>" role="status"><?= e($f['msg']) ?></div></div>
 <?php endforeach; ?>
 <main id="main" class="wrap"><?= $content ?></main>
-<footer class="foot"><div class="wrap">Made with TimePool · free for nonprofits</div></footer>
+<footer class="foot"><div class="wrap">Made with <a href="https://github.com/lancecore/timepool">TimePool</a> • Created by <a href="https://cascadiasouth.com"><img src="<?= asset_url('/assets/cascadiasouth.ico') ?>" alt="" class="foot-ico"> Cascadia South</a></div></footer>
 <script src="<?= asset_url('/assets/app.js') ?>" defer></script>
 </body>
 </html>
