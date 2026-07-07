@@ -20,7 +20,7 @@ $hasLogo = (string)setting('logo_file', '') !== '';
 <header class="topbar">
   <div class="wrap topbar-in">
     <a class="brand" href="<?= url('/dashboard') ?>">
-      <?php if ($hasLogo): ?><img src="<?= url('/logo') ?>" alt="" class="brand-logo"><?php endif; ?>
+      <?php if ($hasLogo): ?><img src="<?= logo_url() ?>" alt="" class="brand-logo"><?php endif; ?>
       <span><?= e($org) ?></span>
     </a>
     <nav class="nav" aria-label="Main">

@@ -98,6 +98,6 @@ function public_logo(): void {
     if (!$file || !is_file($path)) { http_response_code(404); exit; }
     $info = getimagesize($path);
     header('Content-Type: ' . ($info['mime'] ?? 'application/octet-stream'));
-    header('Cache-Control: public, max-age=86400');
+    header('Cache-Control: public, max-age=31536000, immutable'); // URL carries ?v=<mtime>, so it's safe to cache hard
     readfile($path);
 }

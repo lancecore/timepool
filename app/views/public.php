@@ -19,7 +19,7 @@ $hasLogo = (string)setting('logo_file', '') !== '';
 <header class="topbar">
   <div class="wrap topbar-in">
     <span class="brand">
-      <?php if ($hasLogo): ?><img src="<?= url('/logo') ?>" alt="" class="brand-logo"><?php endif; ?>
+      <?php if ($hasLogo): ?><img src="<?= logo_url() ?>" alt="" class="brand-logo"><?php endif; ?>
       <span><?= e($org) ?></span>
     </span>
     <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>

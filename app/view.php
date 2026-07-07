@@ -18,10 +18,16 @@ function accent(): string {
     return preg_match('/^#[0-9a-fA-F]{6}$/', $c) ? $c : '#4f46e5';
 }
 
+/** Versioned logo URL: a replaced logo shows instantly despite long-lived caching. */
+function logo_url(): string {
+    $path = DATA_DIR . '/uploads/' . basename((string)setting('logo_file', ''));
+    return url('/logo?v=' . (is_file($path) ? filemtime($path) : 0));
+}
+
 /** Org logo if set, else an accent-colored check mark. */
 function brandmark(): string {
     $logo = (string)setting('logo_file', '');
-    if ($logo !== '') return '<img src="' . e(url('/logo')) . '" alt="" height="48">';
+    if ($logo !== '') return '<img src="' . e(logo_url()) . '" alt="" height="48">';
     return '<svg viewBox="0 0 32 32" width="48" height="48" aria-hidden="true">'
         . '<rect width="32" height="32" rx="7" fill="' . e(accent()) . '"/>'
         . '<path d="M8 17l5 5 11-12" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';

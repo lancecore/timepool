@@ -45,10 +45,12 @@ function url(string $path = '/'): string {
     return base_path() . '/index.php?r=' . rawurlencode($path) . ($query !== '' ? '&' . $query : '');
 }
 
-/** URL to a static asset (always a real file, never routed). */
+/** URL to a static asset (always a real file, never routed). ?v=<mtime> busts long-lived caches on upgrade. */
 function asset_url(string $path): string {
     if ($path === '' || $path[0] !== '/') $path = '/' . $path;
-    return base_path() . $path;
+    $file = ROOT_DIR . $path;
+    $v = is_file($file) ? (string)filemtime($file) : '';
+    return base_path() . $path . ($v !== '' ? '?v=' . $v : '');
 }
 
 /** The route the request is asking for, normalised to a leading-slash path. */

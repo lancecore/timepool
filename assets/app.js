@@ -57,6 +57,8 @@
       return '<option value="' + z + '"' + (z === viewerTz ? ' selected' : '') + '>' + z.replace(/_/g, ' ') + '</option>';
     }).join('');
     pickers.forEach(function (sel) {
+      var wrap = sel.closest('.tz-pick');
+      if (wrap) wrap.hidden = false; // useless without JS, so served hidden
       sel.innerHTML = opts;
       sel.value = viewerTz;
       sel.addEventListener('change', function () {
@@ -131,6 +133,29 @@
   document.addEventListener('submit', function (e) {
     var msg = e.target.getAttribute && e.target.getAttribute('data-confirm');
     if (msg && !window.confirm(msg)) e.preventDefault();
+  });
+
+  /* ---- Submit feedback: block double POSTs on slow hosts, show a busy state ---- */
+  document.addEventListener('submit', function (e) {
+    if (e.defaultPrevented) return;
+    var form = e.target;
+    if (form.dataset.submitted) { e.preventDefault(); return; }
+    form.dataset.submitted = '1';
+    form.querySelectorAll('button[type=submit], button:not([type])').forEach(function (b) {
+      b.disabled = true;
+      b.setAttribute('aria-busy', 'true');
+    });
+  });
+  // Restore forms when a page comes back from the back/forward cache.
+  window.addEventListener('pageshow', function (e) {
+    if (!e.persisted) return;
+    document.querySelectorAll('form[data-submitted]').forEach(function (form) {
+      delete form.dataset.submitted;
+      form.querySelectorAll('button[aria-busy]').forEach(function (b) {
+        b.disabled = false;
+        b.removeAttribute('aria-busy');
+      });
+    });
   });
 
   /* ---- Init ---- */

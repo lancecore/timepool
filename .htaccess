@@ -21,4 +21,9 @@ Options -Indexes
   Header set X-Content-Type-Options "nosniff"
   Header set X-Frame-Options "SAMEORIGIN"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # Static assets: cache for a year; asset_url() appends ?v=<mtime> so upgrades bust the cache.
+  <FilesMatch "\.(css|js|svg|png|jpe?g|webp|ico|woff2?)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
 </IfModule>

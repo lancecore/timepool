@@ -19,7 +19,7 @@ $hasLogo = (string)setting('logo_file', '') !== '';
   <label>Logo <span class="muted small">(PNG, JPG, GIF or WEBP)</span>
     <input type="file" name="logo" accept="image/*">
   </label>
-  <?php if ($hasLogo): ?><p class="muted small">Current: <img src="<?= url('/logo') ?>" alt="current logo" style="height:28px;vertical-align:middle"></p><?php endif; ?>
+  <?php if ($hasLogo): ?><p class="muted small">Current: <img src="<?= logo_url() ?>" alt="current logo" style="height:28px;vertical-align:middle"></p><?php endif; ?>
 
   <h2 class="mt">Defaults</h2>
   <div class="row-2">
