@@ -15,7 +15,7 @@ $me = current_user();
             <?php if (!$u['active']): ?><span class="pill">disabled</span><?php endif; ?>
           </div>
           <?php if ((int)$u['id'] !== (int)$me['id']): ?>
-            <div class="inline">
+            <div class="btn-row">
               <form method="post" action="<?= url('/users/' . $u['id'] . '/toggle') ?>" class="inline">
                 <?= csrf_field() ?>
                 <button class="btn btn-ghost btn-sm"><?= $u['active'] ? 'Disable' : 'Enable' ?></button>
