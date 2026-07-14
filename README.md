@@ -274,7 +274,7 @@ There is no `.env` file. Configuration splits between a generated PHP file and a
 | GET/POST | `/polls/{id}/edit` | Edit a poll |
 | POST | `/polls/{id}/duplicate` `…/close` `…/finalize` `…/delete` `…/invite` | Poll actions |
 | GET/POST | `/settings` | Branding + email (admin) |
-| GET/POST | `/users`, `/users/{id}/toggle` | Invite + manage organizers (admin) |
+| GET/POST | `/users`, `/users/{id}/toggle`, `/users/{id}/delete` | Invite + manage organizers (admin) |
 | GET | `/logo` | Serve the uploaded logo |
 | GET | `/p/{token}` | Public respond page |
 | POST | `/p/{token}` | Submit / edit a response |

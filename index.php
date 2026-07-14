@@ -37,6 +37,7 @@ $routes = [
     ['GET',  '/users',                             'users_list'],
     ['POST', '/users',                             'users_create'],
     ['POST', '#^/users/(\d+)/toggle$#',            'users_toggle'],
+    ['POST', '#^/users/(\d+)/delete$#',            'users_delete'],
     ['GET',  '/logo',                              'public_logo'],
     ['GET',  '#^/p/([A-Za-z0-9_-]+)/ics$#',        'public_ics'],
     ['POST', '#^/p/([A-Za-z0-9_-]+)$#',            'public_respond'],

@@ -129,7 +129,7 @@ function duplicate_poll(int $pollId, int $userId): ?int {
 function delete_poll(int $pollId): void {
     $db = db();
     $db->prepare('DELETE FROM responses WHERE participant_id IN (SELECT id FROM participants WHERE poll_id = ?)')->execute([$pollId]);
-    foreach (['participants', 'slots', 'activity', 'polls'] as $t) {
+    foreach (['participants', 'slots', 'activity', 'invites', 'polls'] as $t) {
         $col = $t === 'polls' ? 'id' : 'poll_id';
         $db->prepare("DELETE FROM $t WHERE $col = ?")->execute([$pollId]);
     }

@@ -15,10 +15,17 @@ $me = current_user();
             <?php if (!$u['active']): ?><span class="pill">disabled</span><?php endif; ?>
           </div>
           <?php if ((int)$u['id'] !== (int)$me['id']): ?>
-            <form method="post" action="<?= url('/users/' . $u['id'] . '/toggle') ?>" class="inline">
-              <?= csrf_field() ?>
-              <button class="btn btn-ghost btn-sm"><?= $u['active'] ? 'Disable' : 'Enable' ?></button>
-            </form>
+            <div class="inline">
+              <form method="post" action="<?= url('/users/' . $u['id'] . '/toggle') ?>" class="inline">
+                <?= csrf_field() ?>
+                <button class="btn btn-ghost btn-sm"><?= $u['active'] ? 'Disable' : 'Enable' ?></button>
+              </form>
+              <form method="post" action="<?= url('/users/' . $u['id'] . '/delete') ?>" class="inline"
+                    data-confirm="Delete <?= e($u['name']) ?> and all of their polls? This cannot be undone.">
+                <?= csrf_field() ?>
+                <button class="btn btn-danger btn-sm">Delete</button>
+              </form>
+            </div>
           <?php else: ?><span class="muted small">you</span><?php endif; ?>
         </li>
       <?php endforeach; ?>

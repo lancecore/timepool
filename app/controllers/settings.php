@@ -106,6 +106,18 @@ function users_create(): void {
     redirect('/users');
 }
 
+function users_delete(string $id): void {
+    $me = require_admin();
+    csrf_check();
+    if ((int)$id === (int)$me['id']) { flash('You cannot delete your own account.', 'error'); redirect('/users'); }
+    $u = db_user((int)$id);
+    if ($u) {
+        delete_user((int)$id);
+        flash('Account deleted, along with their polls.', 'success');
+    }
+    redirect('/users');
+}
+
 function users_toggle(string $id): void {
     $me = require_admin();
     csrf_check();

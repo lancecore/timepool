@@ -63,6 +63,14 @@ function create_user(string $email, string $password, string $name, string $role
     return (int)db()->lastInsertId();
 }
 
+/** Delete a user and everything they own (polls cascade to slots, responses, invites, …). */
+function delete_user(int $userId): void {
+    $s = db()->prepare('SELECT id FROM polls WHERE user_id = ?');
+    $s->execute([$userId]);
+    foreach ($s->fetchAll() as $p) delete_poll((int)$p['id']);
+    db()->prepare('DELETE FROM users WHERE id = ?')->execute([$userId]);
+}
+
 function all_users(): array {
     return db()->query('SELECT * FROM users ORDER BY created_at')->fetchAll();
 }

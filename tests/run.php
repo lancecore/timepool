@@ -16,6 +16,7 @@ require APP_DIR . '/db.php';
 require APP_DIR . '/auth.php';
 require APP_DIR . '/poll.php';
 require APP_DIR . '/ics.php';
+require APP_DIR . '/notify.php'; // add_invites / invites_for_poll (cascade-delete checks)
 require APP_DIR . '/controllers/auth.php'; // reset_user_for_token (invite + reset links)
 date_default_timezone_set('UTC');
 session_start(); // before any output; needed by the keep-input checks below
@@ -103,6 +104,23 @@ ok(reset_user_for_token('tok_wrong') === null, 'unknown token rejected');
 ok(reset_user_for_token('') === null, 'empty token rejected');
 db()->prepare('UPDATE users SET reset_expires = ? WHERE id = ?')->execute([time() - 1, $oid]);
 ok(reset_user_for_token('tok_valid') === null, 'expired token rejected');
+
+// --- Deleting a user cascades to their polls and all poll children ---
+$opoll = create_poll($oid, ['title' => 'Org poll', 'organizer_tz' => 'UTC', 'blind' => 0], [
+    ['kind' => 'date', 'date' => '2026-08-01'],
+]);
+add_invites($opoll, ['guest@test.org']);
+$oslot = (int)slots_for_poll($opoll)[0]['id'];
+save_response(poll_by_id($opoll), 'Zed', '', [$oslot => 'yes'], '2.2.2.2', null);
+delete_user($oid);
+ok(user_by_email('organizer@test.org') === null, 'deleted user is gone');
+ok(poll_by_id($opoll) === null, "deleted user's poll is gone");
+ok(slots_for_poll($opoll) === [], 'slots cascade-deleted');
+ok(invites_for_poll($opoll) === [], 'invites cascade-deleted');
+$c = db()->prepare('SELECT COUNT(*) c FROM participants WHERE poll_id = ?');
+$c->execute([$opoll]);
+ok((int)$c->fetch()['c'] === 0, 'participants cascade-deleted');
+ok(create_user('organizer@test.org', random_token(24), 'Org 2', 'organizer') > 0, 'same email can be re-created after delete');
 
 // --- Keep-input: failed POSTs repopulate forms, secrets never stashed ---
 $_POST = ['name' => 'Alice', 'password' => 'hunter22', 'current_password' => 'old22', '_csrf' => 't', 'website' => '', 'slot_9' => 'maybe'];
