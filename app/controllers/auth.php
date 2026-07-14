@@ -77,6 +77,34 @@ function reset_submit(): void {
     redirect('/login');
 }
 
+function profile_form(): void {
+    require_login();
+    view('profile', ['title' => 'Your profile']);
+}
+
+function profile_save(): void {
+    $me = require_login();
+    csrf_check();
+    if (param('current_password') !== null) {
+        // Password form. Rate-limited so a hijacked session can't brute-force the current password.
+        if (!rate_ok(client_ip(), 10, 60)) { flash('Too many attempts. Please wait a minute and try again.', 'error'); redirect('/profile'); }
+        if (!password_verify((string)param('current_password', ''), $me['password_hash'])) {
+            flash('Your current password was incorrect.', 'error'); redirect('/profile');
+        }
+        $pw = (string)param('password', '');
+        if (strlen($pw) < 8) { flash('Password must be at least 8 characters.', 'error'); redirect('/profile'); }
+        db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+            ->execute([password_hash($pw, PASSWORD_DEFAULT), (int)$me['id']]);
+        flash('Password updated.', 'success');
+    } else {
+        $name = trim((string)param('name', ''));
+        if ($name === '') { flash('Enter your name.', 'error'); redirect('/profile'); }
+        db()->prepare('UPDATE users SET name = ? WHERE id = ?')->execute([str_cap($name, 120), (int)$me['id']]);
+        flash('Profile updated.', 'success');
+    }
+    redirect('/profile');
+}
+
 function reset_user_for_token(string $token): ?array {
     if ($token === '') return null;
     $s = db()->prepare('SELECT * FROM users WHERE reset_token = ? AND reset_expires > ?');

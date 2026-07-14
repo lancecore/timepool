@@ -103,7 +103,7 @@ function take_flash(): array { $f = $_SESSION['flash'] ?? []; unset($_SESSION['f
 function keep_input(): void {
     if (session_status() !== PHP_SESSION_ACTIVE || !$_POST) return;
     $p = $_POST;
-    unset($p['_csrf'], $p['password'], $p['smtp_pass'], $p['website']);
+    unset($p['_csrf'], $p['password'], $p['current_password'], $p['smtp_pass'], $p['website']);
     $_SESSION['old_input'] = $p;
 }
 

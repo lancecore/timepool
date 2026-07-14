@@ -18,6 +18,8 @@ $routes = [
     ['GET',  '/reset',                             'reset_form'],
     ['POST', '/reset',                             'reset_submit'],
     ['GET',  '/dashboard',                         'dashboard'],
+    ['GET',  '/profile',                           'profile_form'],
+    ['POST', '/profile',                           'profile_save'],
     ['GET',  '/polls/new',                         'poll_new'],
     ['POST', '/polls/new',                         'poll_create'],
     ['GET',  '#^/polls/(\d+)$#',                   'poll_manage'],

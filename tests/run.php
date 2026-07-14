@@ -16,6 +16,7 @@ require APP_DIR . '/db.php';
 require APP_DIR . '/auth.php';
 require APP_DIR . '/poll.php';
 require APP_DIR . '/ics.php';
+require APP_DIR . '/controllers/auth.php'; // reset_user_for_token (invite + reset links)
 date_default_timezone_set('UTC');
 session_start(); // before any output; needed by the keep-input checks below
 
@@ -93,12 +94,23 @@ ok(str_starts_with($tail, 'filler line'), 'log_tail starts on a whole line');
 ok(log_tail($logf . '.nope') === '', 'log_tail of a missing file is empty');
 @unlink($logf);
 
+// --- Invite/reset link tokens (organizer invitations reuse the reset flow) ---
+$oid = create_user('organizer@test.org', random_token(24), 'Org', 'organizer');
+db()->prepare('UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?')
+    ->execute(['tok_valid', time() + 3600, $oid]);
+ok((int)(reset_user_for_token('tok_valid')['id'] ?? 0) === $oid, 'valid setup token resolves to the invited user');
+ok(reset_user_for_token('tok_wrong') === null, 'unknown token rejected');
+ok(reset_user_for_token('') === null, 'empty token rejected');
+db()->prepare('UPDATE users SET reset_expires = ? WHERE id = ?')->execute([time() - 1, $oid]);
+ok(reset_user_for_token('tok_valid') === null, 'expired token rejected');
+
 // --- Keep-input: failed POSTs repopulate forms, secrets never stashed ---
-$_POST = ['name' => 'Alice', 'password' => 'hunter22', '_csrf' => 't', 'website' => '', 'slot_9' => 'maybe'];
+$_POST = ['name' => 'Alice', 'password' => 'hunter22', 'current_password' => 'old22', '_csrf' => 't', 'website' => '', 'slot_9' => 'maybe'];
 keep_input();
 ok(old('name') === 'Alice', 'old() returns the stashed field');
 ok(old('slot_9') === 'maybe', 'old() works for dynamic slot fields');
 ok(old('password', 'X') === 'X', 'passwords are never stashed');
+ok(old('current_password', 'X') === 'X', 'current password is never stashed');
 ok(old('_csrf', 'X') === 'X', 'csrf token is never stashed');
 unset($_SESSION['old_input']);
 ok(old('name', 'fresh') === 'fresh', 'cleared stash falls back to the default');

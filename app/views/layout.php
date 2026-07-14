@@ -32,9 +32,10 @@ $hasLogo = (string)setting('logo_file', '') !== '';
       <?php endif; ?>
       <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
       <?php if ($me): ?>
+        <a href="<?= url('/profile') ?>" title="Your profile"><?= e($me['name']) ?></a>
         <form method="post" action="<?= url('/logout') ?>" class="inline">
           <?= csrf_field() ?>
-          <button type="submit" class="linklike"><?= e($me['name']) ?> · Sign out</button>
+          <button type="submit" class="linklike">Sign out</button>
         </form>
       <?php endif; ?>
     </nav>

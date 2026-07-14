@@ -82,13 +82,27 @@ function users_create(): void {
     csrf_check();
     $email = strtolower(trim((string)param('email', '')));
     $name = trim((string)param('name', ''));
-    $pw = (string)param('password', '');
     if (!valid_email($email)) { keep_input(); flash('Enter a valid email address.', 'error'); redirect('/users'); }
-    if (strlen($pw) < 8) { keep_input(); flash('Password must be at least 8 characters.', 'error'); redirect('/users'); }
     if (user_by_email($email)) { keep_input(); flash('A user with that email already exists.', 'error'); redirect('/users'); }
     $role = param('role') === 'admin' ? 'admin' : 'organizer';
-    create_user($email, $pw, $name, $role);
-    flash('Organizer added.', 'success');
+    // Unguessable placeholder password; the invitee sets their own via the setup link.
+    $id = create_user($email, random_token(24), $name, $role);
+    $token = random_token(24);
+    db()->prepare('UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?')
+        ->execute([$token, time() + 7 * 86400, $id]);
+    $link = absolute_url('/reset?token=' . $token);
+    $sent = false;
+    if (mailer_configured()) {
+        $org = (string)setting('org_name', 'TimePool');
+        $body = '<p>' . e($me['name']) . ' invited you to organize events on <strong>' . e($org) . '</strong>.</p>'
+            . '<p><a href="' . e($link) . '" style="display:inline-block;padding:10px 18px;background:#5b5bd6;color:#fff;border-radius:8px;text-decoration:none">Set your password</a></p>'
+            . '<p style="font-size:13px;color:#8a8aa3">' . e($link) . '</p>'
+            . '<p>This link expires in 7 days.</p>';
+        $sent = send_mail($email, "You're invited to organize on $org", email_layout("You're invited", $body));
+    }
+    flash($sent ? "Invitation sent to $email."
+        : "Account created, but the invitation email could not be sent. Share this setup link with them (valid for 7 days): $link",
+        $sent ? 'success' : 'error');
     redirect('/users');
 }
 

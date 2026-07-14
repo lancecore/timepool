@@ -31,11 +31,11 @@ $me = current_user();
       <?= csrf_field() ?>
       <label>Name <input type="text" name="name" value="<?= e(old('name')) ?>" required></label>
       <label>Email <input type="email" name="email" value="<?= e(old('email')) ?>" required autocomplete="off"></label>
-      <label>Temporary password <input type="password" name="password" minlength="8" required autocomplete="new-password"></label>
       <label>Role
         <select name="role"><option value="organizer">Organizer</option><option value="admin" <?= old('role') === 'admin' ? 'selected' : '' ?>>Admin</option></select>
       </label>
-      <button class="btn">Add organizer</button>
+      <button class="btn">Send invitation</button>
+      <p class="muted small">They'll get an email with a link to set their own password.</p>
     </form>
   </section>
 </div>

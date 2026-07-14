@@ -45,7 +45,8 @@ The flow: you propose a few possible meeting times and share a link. Anyone with
 - **Blind polls** (optional, per poll). Participants can't see anyone else's answers until they submit their own.
 - **Deadlines.** Set a response deadline and the poll closes itself.
 - **Finalize + calendar.** Pick the winning time. Everyone gets Add to Google / Outlook links and a downloadable .ics file.
-- **Email is optional.** With SMTP configured, TimePool sends invites, new-response alerts, deadline reminders, and confirmations. Without it, you share links by hand and everything still works.
+- **Email is optional.** With SMTP configured, TimePool sends poll invites, organizer invitations, new-response alerts, deadline reminders, and confirmations. Without it, you share links by hand and everything still works.
+- **Team accounts.** Admins invite organizers by email; invitees set their own password from the invitation link. Everyone can change their own name and password from their profile.
 - **One-file installer.** A browser wizard sets everything up. No terminal, no separate database server.
 - **Your branding.** Organization name, logo, and accent color.
 - **The UI holds up.** Responsive, light and dark mode, keyboard-navigable, respects reduced motion.
@@ -141,7 +142,7 @@ A small, deliberately boring front-controller app. No framework. The goal is cod
 │   ├── notify.php          # Invites, alerts, reminders, confirmations (+ absolute URLs)
 │   ├── view.php            # Template renderer, brand mark, availability grid
 │   ├── controllers/
-│   │   ├── auth.php         # login/logout/forgot/reset, healthz
+│   │   ├── auth.php         # login/logout/forgot/reset, profile, healthz
 │   │   ├── polls.php        # dashboard, create/edit/manage/finalize/delete/invite
 │   │   ├── public.php       # public respond page, submit, .ics, logo
 │   │   └── settings.php     # branding, SMTP, organizer management
@@ -267,12 +268,13 @@ There is no `.env` file. Configuration splits between a generated PHP file and a
 | GET/POST | `/login`, `/logout` | Auth |
 | GET/POST | `/forgot`, `/reset` | Password reset |
 | GET | `/dashboard` | Organizer's polls |
+| GET/POST | `/profile` | Your own name + password |
 | GET/POST | `/polls/new` | Create a poll |
 | GET | `/polls/{id}` | Manage a poll (grid, share, finalize, activity) |
 | GET/POST | `/polls/{id}/edit` | Edit a poll |
 | POST | `/polls/{id}/duplicate` `…/close` `…/finalize` `…/delete` `…/invite` | Poll actions |
 | GET/POST | `/settings` | Branding + email (admin) |
-| GET/POST | `/users`, `/users/{id}/toggle` | Manage organizers (admin) |
+| GET/POST | `/users`, `/users/{id}/toggle` | Invite + manage organizers (admin) |
 | GET | `/logo` | Serve the uploaded logo |
 | GET | `/p/{token}` | Public respond page |
 | POST | `/p/{token}` | Submit / edit a response |
@@ -303,7 +305,7 @@ Two layers. Both run with just PHP and curl.
 php tests/run.php
 ```
 
-This covers the logic most likely to break quietly: UTC storage across DST, best-slot ranking (If-need-be below Yes), edit-token de-duplication, deadline auto-close, ICS generation, and base-path/query-string URL building. Expected output ends with `23 passed, 0 failed`.
+This covers the logic most likely to break quietly: UTC storage across DST, best-slot ranking (If-need-be below Yes), edit-token de-duplication, deadline auto-close, ICS generation, invite/reset token expiry, and base-path/query-string URL building. Expected output ends with `39 passed, 0 failed`.
 
 ### End-to-end (HTTP)
 
