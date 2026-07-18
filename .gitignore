@@ -5,6 +5,9 @@
 *.sqlite-shm
 _tp_pkg.zip
 
+# ── Marketing site (deployed separately to Netlify, not part of the app) ──
+/site/
+
 # ── OS / editor cruft ──
 .DS_Store
 Thumbs.db
@@ -19,6 +22,7 @@ Thumbs.db
 .claude-flow/
 .swarm/
 .impeccable/
+.impeccable.md
 .mcp.json
 ruvector.db
 CLAUDE.md

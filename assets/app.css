@@ -248,3 +248,39 @@ textarea.log{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fo
 @media(prefers-reduced-motion:reduce){
   *{transition:none!important;animation:none!important;scroll-behavior:auto!important}
 }
+
+/* Booking: page form availability grid */
+.row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.avail-grid{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.avail-day{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.avail-label{flex:0 0 96px;font-weight:600;font-size:.9rem}
+.avail-ranges{display:flex;gap:10px;flex-wrap:wrap;flex:1}
+.avail-range{display:inline-flex;align-items:center;gap:6px}
+.avail-range input{margin:0;width:auto}
+.avail-dash{color:var(--muted)}
+
+/* Booking: no-JS server-rendered timezone picker */
+.tz-form{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tz-form .tz-pick select{width:auto;margin:0;padding:5px 8px;font-size:.84rem}
+
+/* Booking: public day-grouped slot chips */
+.booking-days{display:flex;flex-direction:column;gap:16px}
+.booking-day-h{margin:0 0 8px;font-size:.95rem;color:var(--ink-2)}
+.slot-choices{display:flex;flex-wrap:wrap;gap:8px}
+.slot-radio{position:absolute;opacity:0;width:1px;height:1px}
+.slot-chip{display:inline-flex;align-items:center;justify-content:center;padding:9px 14px;border:1px solid var(--border-strong);
+  border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-weight:600;font-size:.9rem;cursor:pointer;
+  margin:0;transition:background .12s ease,border-color .12s ease}
+.slot-chip:hover{background:var(--surface-2)}
+.slot-radio:checked+.slot-chip{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.slot-radio:focus-visible+.slot-chip{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Booking: admin bookings list */
+.booking-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+.booking-item{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px}
+.booking-item:last-child{border-bottom:0;padding-bottom:0}
+
+@media(max-width:680px){
+  .row-3{grid-template-columns:1fr}
+  .avail-label{flex-basis:100%}
+}

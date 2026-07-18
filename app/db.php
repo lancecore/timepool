@@ -99,6 +99,53 @@ function migrate(PDO $db): void {
         CREATE INDEX IF NOT EXISTS idx_activity_poll ON activity(poll_id);
         CREATE INDEX IF NOT EXISTS idx_invites_poll ON invites(poll_id);
         CREATE INDEX IF NOT EXISTS idx_rate_ip ON rate(ip, ts);
+
+        CREATE TABLE IF NOT EXISTS booking_pages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            public_token TEXT UNIQUE NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            location TEXT,
+            duration_min INTEGER NOT NULL DEFAULT 30,
+            tz TEXT NOT NULL DEFAULT 'UTC',
+            availability TEXT NOT NULL DEFAULT '{}',
+            horizon_days INTEGER NOT NULL DEFAULT 60,
+            min_notice_hours INTEGER NOT NULL DEFAULT 4,
+            buffer_min INTEGER NOT NULL DEFAULT 0,
+            paused INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            page_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            start_utc INTEGER NOT NULL,
+            duration_min INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            note TEXT,
+            manage_token TEXT UNIQUE NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            ip TEXT,
+            created_at INTEGER NOT NULL,
+            cancelled_at INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS blocked_dates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            day TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_bpages_user ON booking_pages(user_id);
+        CREATE INDEX IF NOT EXISTS idx_bookings_page ON bookings(page_id);
+        CREATE INDEX IF NOT EXISTS idx_bookings_user ON bookings(user_id, status);
+        -- DB-level double-booking guard: one active booking per organizer per start.
+        -- A cancelled row (status != 'active') is excluded, so its slot can be rebooked.
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_active ON bookings(user_id, start_utc) WHERE status = 'active';
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_blocked_uday ON blocked_dates(user_id, day);
+        CREATE INDEX IF NOT EXISTS idx_blocked_user ON blocked_dates(user_id);
     ");
 }
 

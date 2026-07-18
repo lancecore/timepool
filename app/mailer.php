@@ -13,6 +13,10 @@ function mailer_configured(): bool {
 function send_mail(string $to, string $subject, string $html): bool {
     if (!mailer_configured()) return false;
 
+    // Subjects embed organizer-controlled titles; collapse any CR/LF so a crafted
+    // title can't inject extra SMTP headers. One guard all callers route through.
+    $subject = mail_header_safe($subject);
+
     $host   = (string)setting('smtp_host');
     $port   = (int)(setting('smtp_port', '587'));
     $user   = (string)setting('smtp_user', '');
@@ -71,6 +75,11 @@ function send_mail(string $to, string $subject, string $html): bool {
         if (is_resource($fp)) fclose($fp);
         return false;
     }
+}
+
+/** Collapse CR/LF (and runs of them) to a single space so a value can't inject email headers. */
+function mail_header_safe(string $s): string {
+    return (string)preg_replace('/[\r\n]+/', ' ', $s);
 }
 
 function mime_encode(string $s): string {

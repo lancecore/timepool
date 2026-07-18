@@ -81,6 +81,10 @@
     });
   }
 
+  /* Booking pages auto-detect the viewer's zone via a pre-paint inline redirect emitted in
+     booking_public.php (location.replace → no Back trap, no flash), not from here — so there is
+     no client-side booking tz code to fight the server round-trip. */
+
   /* ---- Slot builder ---- */
   function syncSlotRow(row) {
     var kind = row.querySelector('[data-slot-kind]');

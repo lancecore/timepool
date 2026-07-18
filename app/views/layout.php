@@ -25,6 +25,7 @@ $hasLogo = (string)setting('logo_file', '') !== '';
     </a>
     <nav class="nav" aria-label="Main">
       <a href="<?= url('/dashboard') ?>">Polls</a>
+      <a href="<?= url('/booking') ?>">Booking</a>
       <a class="btn btn-sm" href="<?= url('/polls/new') ?>">New poll</a>
       <?php if ($me && $me['role'] === 'admin'): ?>
         <a href="<?= url('/users') ?>">Organizers</a>

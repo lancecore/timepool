@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/app/bootstrap.php';
 require __DIR__ . '/app/view.php';
-foreach (['auth', 'polls', 'public', 'settings'] as $c) {
+foreach (['auth', 'polls', 'public', 'settings', 'booking'] as $c) {
     require __DIR__ . "/app/controllers/$c.php";
 }
 
@@ -42,6 +42,22 @@ $routes = [
     ['GET',  '#^/p/([A-Za-z0-9_-]+)/ics$#',        'public_ics'],
     ['POST', '#^/p/([A-Za-z0-9_-]+)$#',            'public_respond'],
     ['GET',  '#^/p/([A-Za-z0-9_-]+)$#',            'public_poll'],
+    ['GET',  '/booking',                           'booking_index'],
+    ['GET',  '/booking/new',                       'booking_new'],
+    ['POST', '/booking/new',                       'booking_create'],
+    ['POST', '/booking/daysoff',                   'daysoff_add'],
+    ['POST', '#^/booking/daysoff/(\d+)/delete$#',  'daysoff_remove'],
+    ['GET',  '#^/booking/(\d+)/edit$#',            'booking_edit'],
+    ['POST', '#^/booking/(\d+)/edit$#',            'booking_update'],
+    ['POST', '#^/booking/(\d+)/pause$#',           'booking_pause'],
+    ['POST', '#^/booking/(\d+)/delete$#',          'booking_delete'],
+    ['POST', '#^/booking/bookings/(\d+)/cancel$#', 'booking_org_cancel'],
+    ['GET',  '#^/b/([A-Za-z0-9_-]+)$#',            'booking_public'],
+    ['POST', '#^/b/([A-Za-z0-9_-]+)$#',            'booking_submit'],
+    ['GET',  '#^/m/([A-Za-z0-9_-]+)/ics$#',        'booking_ics'],
+    ['GET',  '#^/m/([A-Za-z0-9_-]+)/cancel$#',     'booking_cancel_confirm'],
+    ['POST', '#^/m/([A-Za-z0-9_-]+)/cancel$#',     'booking_cancel_do'],
+    ['GET',  '#^/m/([A-Za-z0-9_-]+)$#',            'booking_manage'],
 ];
 
 $method = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD' ? 'GET' : ($_SERVER['REQUEST_METHOD'] ?? 'GET');
