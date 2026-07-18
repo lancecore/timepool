@@ -49,6 +49,7 @@ require APP_DIR . '/db.php';
 require APP_DIR . '/auth.php';
 require APP_DIR . '/poll.php';
 require APP_DIR . '/booking.php';
+require APP_DIR . '/booking_calendar.php';
 require APP_DIR . '/mailer.php';
 require APP_DIR . '/ics.php';
 require APP_DIR . '/notify.php';

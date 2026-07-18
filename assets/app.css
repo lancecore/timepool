@@ -10,7 +10,7 @@
   --ok:#1f9d6b; --danger:#d6455d; --live:#5b5bd6;
   --shadow:0 1px 2px rgba(20,20,46,.04),0 6px 20px rgba(20,20,46,.06);
   --radius:14px; --radius-sm:9px;
-  --maxw:960px;
+  --maxw:1120px;
   --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
 [data-theme="dark"]{
@@ -280,7 +280,28 @@ textarea.log{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fo
 .booking-item{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px}
 .booking-item:last-child{border-bottom:0;padding-bottom:0}
 
+/* Booking: page-type chooser */
+.page-types{border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin:0}
+.page-types legend{padding:0 6px;font-weight:600;font-size:.9rem}
+.type-opt{display:flex;align-items:baseline;gap:8px;padding:5px 0}
+.type-opt input{width:auto;margin:0}
+
+/* Booking: calendar week-by-week editor */
+.week-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0;flex-wrap:wrap}
+.week-label{font-weight:600}
+.week-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+.week-day{display:flex;flex-direction:column;gap:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;background:var(--surface-2);min-width:0}
+.week-day.is-past{opacity:.55}
+.week-day-h{font-weight:600;font-size:.9rem}
+.week-range{display:flex;flex-direction:column;gap:4px}
+.week-range input{margin:0;width:100%;min-width:0}
+.week-past{margin:0}
+
+@media(max-width:900px){.week-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:680px){
   .row-3{grid-template-columns:1fr}
   .avail-label{flex-basis:100%}
+  .week-grid{grid-template-columns:repeat(2,1fr)}
 }
+@media(max-width:420px){.week-grid{grid-template-columns:1fr}}

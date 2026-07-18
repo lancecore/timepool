@@ -70,6 +70,21 @@
     });
   }
 
+  /* Booking page-type chooser: hide the weekly-availability block when Calendar is picked.
+     No-JS still works — the server ignores the weekly grid for calendar pages. */
+  function initTypeToggle() {
+    var radios = document.querySelectorAll('input[name="type"][data-type-select]');
+    if (!radios.length) return;
+    var block = document.querySelector('[data-weekly-only]');
+    function sync() {
+      var val = '';
+      radios.forEach(function (r) { if (r.checked) val = r.value; });
+      if (block) block.hidden = (val === 'calendar');
+    }
+    radios.forEach(function (r) { r.addEventListener('change', sync); });
+    sync();
+  }
+
   /* Auto-fill organizer timezone on the new-poll form. */
   function autoTz() {
     document.querySelectorAll('select[data-tz-select][data-autotz]').forEach(function (sel) {
@@ -166,5 +181,6 @@
   renderTimes();
   buildPickers();
   autoTz();
+  initTypeToggle();
   initSlots();
 })();

@@ -16,6 +16,7 @@ require APP_DIR . '/db.php';
 require APP_DIR . '/auth.php';
 require APP_DIR . '/poll.php';
 require APP_DIR . '/booking.php';
+require APP_DIR . '/booking_calendar.php';
 require APP_DIR . '/mailer.php'; // mail_header_safe (subject header-injection guard)
 require APP_DIR . '/ics.php';
 require APP_DIR . '/notify.php'; // add_invites / invites_for_poll (cascade-delete checks)
@@ -322,6 +323,160 @@ ok(strpos(slot_label($tzSlot[0], 'Asia/Tokyo'), '11:00 AM') !== false, 'slot lab
 ok(mail_header_safe("Booking: Lunch\r\nBcc: evil@example.org") === 'Booking: Lunch Bcc: evil@example.org', 'CR/LF stripped from a mail subject (no header injection)');
 ok(mail_header_safe("a\nb\rc") === 'a b c', 'CR and LF runs collapse to a single space');
 ok(mail_header_safe('Plain subject') === 'Plain subject', 'a normal subject is unchanged');
+
+// ================= Booking: calendar pages & per-page blocks =================
+$mkCal = function (int $u, array $over = []): int {
+    return create_booking_page($u, array_merge([
+        'title' => 'Cal', 'description' => '', 'location' => '', 'duration_min' => 30, 'tz' => 'UTC',
+        'availability' => [], 'horizon_days' => 60, 'min_notice_hours' => 0, 'buffer_min' => 0, 'type' => 'calendar',
+    ], $over));
+};
+$mkWeekly = function (int $u, array $over = []) use ($allDays): int {
+    return create_booking_page($u, array_merge([
+        'title' => 'Wk', 'description' => '', 'location' => '', 'duration_min' => 30, 'tz' => 'UTC',
+        'availability' => $allDays, 'horizon_days' => 10, 'min_notice_hours' => 0, 'buffer_min' => 0, 'type' => 'weekly',
+    ], $over));
+};
+
+// --- Calendar generation only on placed (future) dates ---
+$calU = create_user('bookcal@test.org', random_token(12), 'Cal', 'organizer');
+$calId = $mkCal($calU);
+$calPage = booking_page_by_id($calId);
+ok($calPage['type'] === 'calendar', 'calendar page persists type=calendar');
+$calNow = $epoch('2027-04-05 00:00', 'UTC'); // Monday; "today" = 2027-04-05 in UTC
+booking_set_date_windows($calId, '2027-04-07', [['09:00', '11:00']]);
+booking_set_date_windows($calId, '2027-04-09', [['14:00', '15:00']]);
+booking_set_date_windows($calId, '2027-04-01', [['09:00', '10:00']]); // in the past relative to $calNow
+$calSlots = booking_open_slots($calPage, $calNow);
+ok($hasDate($calSlots, '2027-04-07') && $hasDate($calSlots, '2027-04-09'), 'slots appear on both placed future dates');
+ok(!$hasDate($calSlots, '2027-04-08'), 'no slots on a date without placed windows');
+ok(!$hasDate($calSlots, '2027-04-01'), 'a placed date in the past generates no slots');
+$day07 = array_filter($calSlots, function ($s) { return gmdate('Y-m-d', $s['start_utc']) === '2027-04-07'; });
+ok(count($day07) === 4, 'a placed 2-hour window yields four 30-minute slots');
+
+// --- Minimum notice + buffer on calendar pages ---
+$calNoticeId = $mkCal($calU, ['min_notice_hours' => 4]);
+booking_set_date_windows($calNoticeId, '2027-04-05', [['00:00', '08:00']]); // today, per $calNow
+$nsCal = booking_open_slots(booking_page_by_id($calNoticeId), $calNow);
+ok(count($nsCal) && $nsCal[0]['start_utc'] === $calNow + 4 * 3600, 'calendar page honors 4h minimum notice');
+$calBufU = create_user('bookcalbuf@test.org', random_token(12), 'CalBuf', 'organizer');
+$calBufId = $mkCal($calBufU, ['buffer_min' => 15]);
+booking_set_date_windows($calBufId, '2027-04-07', [['09:00', '12:00']]);
+$calBook = $epoch('2027-04-07 10:00', 'UTC');
+$insBooking($calBufId, $calBufU, $calBook, 'calbuf', 'active');
+$calBufSlots = $starts(booking_open_slots(booking_page_by_id($calBufId), $calNow));
+ok(!in_array($calBook, $calBufSlots, true), 'calendar booked start is not offered');
+ok(!in_array($epoch('2027-04-07 09:30', 'UTC'), $calBufSlots, true), 'calendar 09:30 excluded by 15-min buffer around 10:00');
+ok(in_array($epoch('2027-04-07 09:00', 'UTC'), $calBufSlots, true), 'calendar 09:00 stays open (outside buffer)');
+
+// --- Copy previous week: replace, empty-source refusal, past-date skipping ---
+$cpU = create_user('bookcopy@test.org', random_token(12), 'Copy', 'organizer');
+$cpId = $mkCal($cpU);
+booking_set_date_windows($cpId, '2027-05-03', [['09:00', '10:00']]); // source Monday
+booking_set_date_windows($cpId, '2027-05-05', [['13:00', '14:00']]); // source Wednesday
+booking_set_date_windows($cpId, '2027-05-10', [['08:00', '08:30']]); // target Monday (to be replaced)
+$cpRes = copy_previous_week($cpId, '2027-05-10', '2027-05-01');
+ok(!empty($cpRes['ok']), 'copy previous week succeeds when the source week has windows');
+$cpMap = booking_windows_day_map($cpId);
+ok(($cpMap['2027-05-10'] ?? []) === [['09:00', '10:00']], 'target Monday is replaced with the source Monday windows');
+ok(($cpMap['2027-05-12'] ?? []) === [['13:00', '14:00']], 'target Wednesday receives the source Wednesday windows');
+$cpEmpty = copy_previous_week($cpId, '2027-06-14', '2027-05-01'); // source week 2027-06-07.. has no windows
+ok(empty($cpEmpty['ok']) && $cpEmpty['reason'] === 'empty', 'copy from an empty source week is refused');
+booking_set_date_windows($cpId, '2027-06-14', [['07:00', '07:30']]);
+copy_previous_week($cpId, '2027-06-14', '2027-05-01'); // still empty source
+ok((booking_windows_day_map($cpId)['2027-06-14'] ?? []) === [['07:00', '07:30']], 'a refused copy leaves the target week untouched');
+$cpU2 = create_user('bookcopy2@test.org', random_token(12), 'Copy2', 'organizer');
+$cpId2 = $mkCal($cpU2);
+booking_set_date_windows($cpId2, '2027-05-03', [['09:00', '10:00']]); // source Monday
+booking_set_date_windows($cpId2, '2027-05-05', [['13:00', '14:00']]); // source Wednesday
+booking_set_date_windows($cpId2, '2027-05-10', [['20:00', '21:00']]); // target Monday, becomes past
+$cpRes2 = copy_previous_week($cpId2, '2027-05-10', '2027-05-12'); // today = Wed → Mon/Tue of target are past
+ok(!empty($cpRes2['ok']), 'copy succeeds onto a partly-past target week');
+$cpMap2 = booking_windows_day_map($cpId2);
+ok(($cpMap2['2027-05-10'] ?? []) === [['20:00', '21:00']], 'a past target date is left untouched by copy');
+ok(($cpMap2['2027-05-12'] ?? []) === [['13:00', '14:00']], 'a future target date receives the source windows');
+
+// --- Week-window validation: past dates and invalid ranges (input-kept path in controller) ---
+ok(validate_week_windows(['2027-05-10' => [['09:00', '10:00']]], '2027-05-01') === null, 'a valid future window passes validation');
+ok(validate_week_windows(['2027-05-10' => [['09:00', '10:00']]], '2027-05-20') !== null, 'a window on a past date is rejected');
+ok(validate_week_windows(['2027-05-10' => [['10:00', '09:00']]], '2027-05-01') !== null, 'end <= start is rejected');
+ok(validate_week_windows(['2027-05-10' => [['09:00', '11:00'], ['10:30', '12:00']]], '2027-05-01') !== null, 'overlapping ranges on one date are rejected');
+ok(validate_week_windows(['2027-05-10' => [['09:00', '25:00']]], '2027-05-01') !== null, 'an invalid HH:MM value is rejected');
+
+// --- Per-page block hides windows without deleting them; unblock restores ---
+$blkU = create_user('bookpblock@test.org', random_token(12), 'PBlock', 'organizer');
+$blkId = $mkCal($blkU);
+booking_set_date_windows($blkId, '2027-04-08', [['09:00', '10:00']]);
+$blkPage = booking_page_by_id($blkId);
+ok($hasDate(booking_open_slots($blkPage, $calNow), '2027-04-08'), 'calendar slots exist before the per-page block');
+ok(add_page_block($blkId, '2027-04-08'), 'per-page block added');
+ok(!$hasDate(booking_open_slots($blkPage, $calNow), '2027-04-08'), 'per-page block hides the date');
+ok((booking_windows_day_map($blkId)['2027-04-08'] ?? []) === [['09:00', '10:00']], 'the block does not delete the windows');
+remove_page_block($blkId, (int)page_blocks_for_page($blkId)[0]['id']);
+ok($hasDate(booking_open_slots($blkPage, $calNow), '2027-04-08'), 'unblocking restores the hidden windows');
+
+// --- Per-page block on a weekly page affects only that page ---
+$twoU = create_user('booktwo@test.org', random_token(12), 'Two', 'organizer');
+$twoA = $mkWeekly($twoU);
+$twoB = $mkWeekly($twoU);
+add_page_block($twoA, '2027-04-08');
+ok(!$hasDate(booking_open_slots(booking_page_by_id($twoA), $calNow), '2027-04-08'), 'per-page block hides the date on the blocked weekly page');
+ok($hasDate(booking_open_slots(booking_page_by_id($twoB), $calNow), '2027-04-08'), 'the organizer\'s other page still offers the same date');
+
+// --- Either-block exclusion (organizer day off OR per-page block), independently ---
+$eoU = create_user('bookeither@test.org', random_token(12), 'Either', 'organizer');
+$eoId = $mkWeekly($eoU);
+$eoPage = booking_page_by_id($eoId);
+add_blocked_date($eoU, '2027-04-08');
+add_page_block($eoId, '2027-04-09');
+$eos = booking_open_slots($eoPage, $calNow);
+ok(!$hasDate($eos, '2027-04-08'), 'an organizer-wide day off excludes the date');
+ok(!$hasDate($eos, '2027-04-09'), 'a per-page block excludes the date');
+ok($hasDate($eos, '2027-04-10'), 'a date with neither block still offers slots');
+$eoOff = blocked_dates_for_user($eoU);
+remove_blocked_date($eoU, (int)$eoOff[0]['id']);
+$eos2 = booking_open_slots($eoPage, $calNow);
+ok($hasDate($eos2, '2027-04-08'), 'removing the day off reopens its date');
+ok(!$hasDate($eos2, '2027-04-09'), 'the independent per-page block still excludes its date');
+
+// --- Cross-type conflict: a booking on either type blocks overlapping slots on the other ---
+$ctU = create_user('bookcross2@test.org', random_token(12), 'Cross2', 'organizer');
+$ctWeekly = $mkWeekly($ctU, ['horizon_days' => 30]);
+$ctCal = $mkCal($ctU);
+booking_set_date_windows($ctCal, '2027-04-08', [['09:00', '12:00']]);
+$ctBook = $epoch('2027-04-08 10:00', 'UTC');
+$insBooking($ctWeekly, $ctU, $ctBook, 'ctwk', 'active'); // book on the weekly page
+$ctCalStarts = $starts(booking_open_slots(booking_page_by_id($ctCal), $calNow));
+ok(!in_array($ctBook, $ctCalStarts, true), 'a weekly-page booking blocks the overlapping calendar-page slot');
+ok(in_array($epoch('2027-04-08 09:00', 'UTC'), $ctCalStarts, true), 'a non-overlapping calendar slot is still offered');
+$ctBook2 = $epoch('2027-04-08 11:00', 'UTC');
+$insBooking($ctCal, $ctU, $ctBook2, 'ctcal', 'active'); // book on the calendar page
+$ctWkStarts = $starts(booking_open_slots(booking_page_by_id($ctWeekly), $calNow));
+ok(!in_array($ctBook2, $ctWkStarts, true), 'a calendar-page booking blocks the overlapping weekly-page slot');
+
+// --- book_slot end-to-end on a calendar page + cancellation reopens (public-flow parity) ---
+$cbU = create_user('bookcalbook@test.org', random_token(12), 'CalBook', 'organizer');
+$cbId = $mkCal($cbU);
+booking_set_date_windows($cbId, '2027-08-10', [['09:00', '10:00']]);
+$cbPage = booking_page_by_id($cbId);
+$cbOpen = booking_open_slots($cbPage);
+ok(count($cbOpen) > 0, 'calendar page produces open slots for booking');
+$cbTarget = $cbOpen[0]['start_utc'];
+$cbRes = book_slot($cbPage, $cbTarget, 'Zoe', 'zoe@test.org', '', '9.9.9.7');
+ok(!empty($cbRes['ok']), 'book_slot succeeds on a calendar-page slot');
+ok(!in_array($cbTarget, $starts(booking_open_slots($cbPage)), true), 'booked calendar slot disappears');
+ok(cancel_booking(booking_by_token($cbRes['token'])) === true, 'cancel a calendar-page booking');
+ok(in_array($cbTarget, $starts(booking_open_slots($cbPage)), true), 'cancelled calendar slot reopens');
+
+// --- Migration idempotency: running migrations again on a populated DB is safe ---
+$migOk = true;
+try { migrate(db()); migrate(db()); } catch (Throwable $e) { $migOk = false; }
+ok($migOk, 'running migrations again on a populated database throws nothing');
+$bpCols = [];
+foreach (db()->query('PRAGMA table_info(booking_pages)') as $bc) $bpCols[$bc['name']] = true;
+ok(isset($bpCols['type']), 'booking_pages.type is present after repeated migrations');
+ok(booking_page_by_id($calId)['type'] === 'calendar', 'a calendar page still round-trips after repeated migrations');
+ok((booking_windows_day_map($calId)['2027-04-07'] ?? []) === [['09:00', '11:00']], 'calendar windows survive repeated migrations');
 
 echo "\n$pass passed, $fail failed\n";
 @unlink($tmp); @unlink($tmp . '-wal'); @unlink($tmp . '-shm');

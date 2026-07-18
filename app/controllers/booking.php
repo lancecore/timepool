@@ -32,6 +32,10 @@ function collect_booking_data(): array {
     $n = trim((string)param('min_notice_hours', ''));
     $b = trim((string)param('buffer_min', ''));
 
+    // Type is chosen at creation and is immutable afterwards; callers editing a page overwrite this
+    // with the page's stored type before validating. Calendar pages have no weekly template.
+    $type = in_array(param('type'), ['weekly', 'calendar'], true) ? (string)param('type') : 'weekly';
+
     // Clamp both bounds server-side: the form maxes are client-only, and an unbounded
     // horizon would make every public GET loop that many days (self-service DoS).
     return [
@@ -40,7 +44,8 @@ function collect_booking_data(): array {
         'location'         => trim((string)param('location', '')),
         'duration_min'     => $duration,
         'tz'               => $tz,
-        'availability'     => collect_availability(),
+        'type'             => $type,
+        'availability'     => $type === 'calendar' ? [] : collect_availability(),
         'horizon_days'     => $h === '' ? 60 : min(365, max(1, (int)$h)),
         'min_notice_hours' => $n === '' ? 4 : min(8760, max(0, (int)$n)),
         'buffer_min'       => $b === '' ? 0 : min(1440, max(0, (int)$b)),
@@ -70,6 +75,9 @@ function collect_availability(): array {
 function validate_booking_data(array $d): ?string {
     if ($d['title'] === '') return 'Please give the booking page a title.';
     if ($d['duration_min'] <= 0) return 'Please choose a positive meeting duration.';
+    // Calendar pages carry no weekly template — their availability lives in date windows edited
+    // week by week after creation, so the weekly-range checks below don't apply.
+    if (($d['type'] ?? 'weekly') === 'calendar') return null;
     $hasRange = false;
     $re = '/^([01]\d|2[0-3]):[0-5]\d$/';
     foreach ($d['availability'] as $ranges) {
@@ -109,6 +117,28 @@ function booking_new(): void {
     view('booking_form', ['title' => 'New booking page', 'page' => null]);
 }
 
+/**
+ * View data for the edit form. Both types get their per-page blocked dates; calendar pages also get
+ * the displayed week (from ?week, snapped to Monday), that week's placed windows, and today's date in
+ * the page tz. Pass $weekWindows to re-show just-submitted (invalid) input instead of the stored rows.
+ */
+function booking_form_vars(array $page, ?string $week = null, ?array $weekWindows = null): array {
+    $vars = [
+        'title'  => 'Edit booking page',
+        'page'   => $page,
+        'blocks' => page_blocks_for_page((int)$page['id']),
+    ];
+    if (booking_is_calendar($page)) {
+        $today = booking_today($page);
+        $week = booking_week_monday($week ?? (string)param('week', $today));
+        $vars['today'] = $today;
+        $vars['week'] = $week;
+        $vars['weekWindows'] = $weekWindows
+            ?? array_intersect_key(booking_windows_day_map((int)$page['id']), array_flip(booking_week_dates($week)));
+    }
+    return $vars;
+}
+
 function booking_create(): void {
     $u = require_login();
     csrf_check();
@@ -127,22 +157,136 @@ function booking_create(): void {
 
 function booking_edit(string $id): void {
     [, $page] = own_booking_page($id);
-    view('booking_form', ['title' => 'Edit booking page', 'page' => $page]);
+    view('booking_form', booking_form_vars($page));
 }
 
 function booking_update(string $id): void {
     [, $page] = own_booking_page($id);
     csrf_check();
     $data = collect_booking_data();
+    $data['type'] = (string)$page['type']; // type is fixed at creation; never changed by an edit
     $err = validate_booking_data($data);
     if ($err) {
         keep_input();
         flash($err, 'error');
-        view('booking_form', ['title' => 'Edit booking page', 'page' => array_merge($page, $data)]);
+        view('booking_form', booking_form_vars(array_merge($page, $data)));
         return;
     }
     update_booking_page((int)$page['id'], $data);
     flash('Booking page updated. Existing bookings keep their original time.', 'success');
+    redirect('/booking/' . $page['id'] . '/edit');
+}
+
+/* ---------------- Calendar pages: week editor, copy-week, per-page blocks ---------------- */
+
+/** Read the week editor's date windows from the form into ['Y-m-d' => [[start,end],...]]. */
+function collect_week_windows(): array {
+    $raw = (array)($_POST['win'] ?? []);
+    $out = [];
+    foreach ($raw as $day => $fields) {
+        $day = (string)$day;
+        $starts = (array)($fields['start'] ?? []);
+        $ends   = (array)($fields['end'] ?? []);
+        $ranges = [];
+        foreach ($starts as $i => $st) {
+            $st = trim((string)$st);
+            $en = trim((string)($ends[$i] ?? ''));
+            if ($st === '' && $en === '') continue;
+            $ranges[] = [$st, $en];
+        }
+        if ($ranges) $out[$day] = $ranges;
+    }
+    return $out;
+}
+
+/** Validate submitted week windows. Same HH:MM / end>start / no-overlap rules as weekly pages,
+ *  plus a refusal to place availability on a date already in the past ($todayStr, page tz). */
+function validate_week_windows(array $dateRanges, string $todayStr): ?string {
+    $re = '/^([01]\d|2[0-3]):[0-5]\d$/';
+    foreach ($dateRanges as $day => $ranges) {
+        if (!$ranges) continue;
+        if ((string)$day < $todayStr) return 'Availability cannot be added to a date in the past.';
+        $mins = [];
+        foreach ($ranges as $r) {
+            if (!preg_match($re, $r[0]) || !preg_match($re, $r[1])) return 'Please enter valid start and end times (HH:MM).';
+            $sm = booking_hm_to_min($r[0]);
+            $em = booking_hm_to_min($r[1]);
+            if ($em <= $sm) return 'Each availability end time must be after its start time.';
+            $mins[] = [$sm, $em];
+        }
+        usort($mins, function ($a, $b) { return $a[0] <=> $b[0]; });
+        for ($i = 1; $i < count($mins); $i++) {
+            if ($mins[$i][0] < $mins[$i - 1][1]) return 'Availability ranges within a day must not overlap.';
+        }
+    }
+    return null;
+}
+
+function booking_save_week(string $id): void {
+    [, $page] = own_booking_page($id);
+    csrf_check();
+    if (!booking_is_calendar($page)) { redirect('/booking/' . $page['id'] . '/edit'); }
+    $today = booking_today($page);
+    $week = booking_week_monday((string)param('week', $today));
+    $ranges = collect_week_windows();
+    $err = validate_week_windows($ranges, $today);
+    if ($err) {
+        // Re-render (no redirect) so the just-typed times survive; the settings form keeps its
+        // stored values via old()'s fallback since this POST carried none of those fields.
+        flash($err, 'error');
+        $shown = array_intersect_key($ranges, array_flip(booking_week_dates($week)));
+        view('booking_form', booking_form_vars($page, $week, $shown));
+        return;
+    }
+    // Replace exactly the displayed week's non-past dates (emptied dates clear); past dates untouched.
+    $editable = array_values(array_filter(booking_week_dates($week), function ($d) use ($today) { return $d >= $today; }));
+    set_week_windows((int)$page['id'], $editable, $ranges);
+    flash('Availability saved for the week of ' . $week . '.', 'success');
+    redirect('/booking/' . $page['id'] . '/edit?week=' . $week);
+}
+
+function booking_copy_week_confirm(string $id): void {
+    [, $page] = own_booking_page($id);
+    if (!booking_is_calendar($page)) { redirect('/booking/' . $page['id'] . '/edit'); }
+    $today = booking_today($page);
+    $week = booking_week_monday((string)param('week', $today));
+    $src = booking_shift_date($week, -7);
+    $map = booking_windows_day_map((int)$page['id']);
+    $srcHas = false;
+    foreach (booking_week_dates($src) as $sd) { if (!empty($map[$sd])) { $srcHas = true; break; } }
+    if (!$srcHas) {
+        flash('The previous week has no availability to copy.', 'error');
+        redirect('/booking/' . $page['id'] . '/edit?week=' . $week);
+    }
+    view('booking_copy_confirm', ['title' => 'Copy previous week', 'page' => $page, 'week' => $week, 'src' => $src]);
+}
+
+function booking_copy_week_do(string $id): void {
+    [, $page] = own_booking_page($id);
+    csrf_check();
+    if (!booking_is_calendar($page)) { redirect('/booking/' . $page['id'] . '/edit'); }
+    $today = booking_today($page);
+    $week = booking_week_monday((string)param('week', $today));
+    $res = copy_previous_week((int)$page['id'], $week, $today);
+    if (empty($res['ok'])) flash('The previous week has no availability to copy.', 'error');
+    else flash('Copied the previous week onto the week of ' . $week . '.', 'success');
+    redirect('/booking/' . $page['id'] . '/edit?week=' . $week);
+}
+
+function booking_block_add(string $id): void {
+    [, $page] = own_booking_page($id);
+    csrf_check();
+    $day = trim((string)param('day', ''));
+    if (add_page_block((int)$page['id'], $day)) flash('Date blocked for this page only.', 'success');
+    else flash('Please pick a valid date.', 'error');
+    redirect('/booking/' . $page['id'] . '/edit');
+}
+
+function booking_block_remove(string $id, string $blockId): void {
+    [, $page] = own_booking_page($id);
+    csrf_check();
+    remove_page_block((int)$page['id'], (int)$blockId);
+    flash('Date unblocked for this page.', 'success');
     redirect('/booking/' . $page['id'] . '/edit');
 }
 

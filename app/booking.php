@@ -66,11 +66,11 @@ function create_booking_page(int $userId, array $d): int {
     $db = db();
     $now = time();
     $st = $db->prepare('INSERT INTO booking_pages
-        (user_id, public_token, title, description, location, duration_min, tz, availability, horizon_days, min_notice_hours, buffer_min, paused, created_at, updated_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,0,?,?)');
+        (user_id, public_token, title, description, location, duration_min, tz, type, availability, horizon_days, min_notice_hours, buffer_min, paused, created_at, updated_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,0,?,?)');
     $st->execute([
         $userId, random_token(9), $d['title'], $d['description'], $d['location'],
-        $d['duration_min'], $d['tz'], json_encode($d['availability']),
+        $d['duration_min'], $d['tz'], ($d['type'] ?? 'weekly'), json_encode($d['availability']),
         $d['horizon_days'], $d['min_notice_hours'], $d['buffer_min'], $now, $now,
     ]);
     return (int)$db->lastInsertId();
@@ -101,6 +101,8 @@ function page_upcoming_active_count(int $pageId): int {
 function delete_booking_page(int $pageId): void {
     $db = db();
     $db->prepare('DELETE FROM bookings WHERE page_id=?')->execute([$pageId]);
+    $db->prepare('DELETE FROM booking_windows WHERE page_id=?')->execute([$pageId]);
+    $db->prepare('DELETE FROM booking_page_blocks WHERE page_id=?')->execute([$pageId]);
     $db->prepare('DELETE FROM booking_pages WHERE id=?')->execute([$pageId]);
 }
 
@@ -161,10 +163,13 @@ function booking_conflicts(int $start, int $end, int $bufferMin, array $busy): b
 
 /**
  * Open slots for a page: every duration-length start (stepping by the duration)
- * inside each availability window on each date within the horizon, converted
- * date-by-date from the page tz to UTC so wall-clock stays correct across DST.
- * Excludes: starts before now+minNotice, blocked dates, and slots overlapping
- * (buffer included) any active booking of the same organizer on any page.
+ * inside each availability window on each eligible date, converted date-by-date
+ * from the page tz to UTC so wall-clock stays correct across DST. Weekly pages
+ * walk the recurring template across the horizon; calendar pages use their placed
+ * date windows (horizon does not apply — the dates themselves define reach).
+ * A date is excluded when EITHER an organizer-wide day off OR this page's own block
+ * applies. Also excludes starts before now+minNotice and slots overlapping (buffer
+ * included) any active booking of the same organizer on any page, of either type.
  * Returns slot arrays shaped like poll slots so time_attr()/slot_label() work.
  */
 function booking_open_slots(array $page, ?int $now = null): array {
@@ -174,37 +179,52 @@ function booking_open_slots(array $page, ?int $now = null): array {
     $step = $dur * 60;
     $buffer = max(0, (int)$page['buffer_min']);
     $earliest = $now + max(0, (int)$page['min_notice_hours']) * 3600;
-    $horizon = max(1, (int)$page['horizon_days']);
-    $limit = $now + $horizon * 86400;
+    $isCal = booking_is_calendar($page);
 
-    $avail = booking_availability($page);
-    if (!$avail) return [];
-    $blocked = blocked_dates_set((int)$page['user_id']);
+    // Build ['Y-m-d' => [[start,end],...]] of candidate windows plus an optional upper bound.
+    $limit = null;
+    if ($isCal) {
+        $today = (new DateTime('@' . $now))->setTimezone($tz)->format('Y-m-d');
+        $dates = [];
+        foreach (booking_windows_day_map((int)$page['id']) as $day => $ranges) {
+            if ($day >= $today) $dates[$day] = $ranges; // placed dates in the past never generate
+        }
+    } else {
+        $avail = booking_availability($page);
+        if (!$avail) return [];
+        $horizon = max(1, (int)$page['horizon_days']);
+        $limit = $now + $horizon * 86400;
+        $cursor = (new DateTime('@' . $now))->setTimezone($tz);
+        $cursor->setTime(0, 0, 0);
+        $dates = [];
+        for ($i = 0; $i <= $horizon; $i++) {
+            $wd = (int)$cursor->format('w');
+            if (!empty($avail[$wd])) $dates[$cursor->format('Y-m-d')] = $avail[$wd];
+            $cursor->modify('+1 day');
+        }
+    }
+    if (!$dates) return [];
+
+    $blockedOrg = blocked_dates_set((int)$page['user_id']);   // organizer-wide days off
+    $blockedPage = page_blocks_set((int)($page['id'] ?? 0));   // this page's own blocks
     $busy = booking_busy_intervals((int)$page['user_id']);
-
-    $cursor = new DateTime('@' . $now);
-    $cursor->setTimezone($tz);
-    $cursor->setTime(0, 0, 0);
 
     $out = [];
     $seen = [];
-    for ($i = 0; $i <= $horizon; $i++) {
-        $dateStr = $cursor->format('Y-m-d');
-        $wd = (int)$cursor->format('w');
-        if (!isset($blocked[$dateStr]) && !empty($avail[$wd])) {
-            foreach ($avail[$wd] as $range) {
-                $ws = (new DateTime($dateStr . ' ' . $range[0], $tz))->getTimestamp();
-                $we = (new DateTime($dateStr . ' ' . $range[1], $tz))->getTimestamp();
-                for ($t = $ws; $t + $step <= $we; $t += $step) {
-                    if ($t < $earliest || $t >= $limit) continue;
-                    if (isset($seen[$t])) continue;
-                    if (booking_conflicts($t, $t + $step, $buffer, $busy)) continue;
-                    $seen[$t] = true;
-                    $out[] = ['kind' => 'datetime', 'start_utc' => $t, 'duration_min' => $dur];
-                }
+    foreach ($dates as $dateStr => $ranges) {
+        if (isset($blockedOrg[$dateStr]) || isset($blockedPage[$dateStr])) continue;
+        foreach ($ranges as $range) {
+            $ws = (new DateTime($dateStr . ' ' . $range[0], $tz))->getTimestamp();
+            $we = (new DateTime($dateStr . ' ' . $range[1], $tz))->getTimestamp();
+            for ($t = $ws; $t + $step <= $we; $t += $step) {
+                if ($t < $earliest) continue;
+                if ($limit !== null && $t >= $limit) continue;
+                if (isset($seen[$t])) continue;
+                if (booking_conflicts($t, $t + $step, $buffer, $busy)) continue;
+                $seen[$t] = true;
+                $out[] = ['kind' => 'datetime', 'start_utc' => $t, 'duration_min' => $dur];
             }
         }
-        $cursor->modify('+1 day');
     }
     usort($out, function ($a, $b) { return $a['start_utc'] <=> $b['start_utc']; });
     return $out;

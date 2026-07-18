@@ -109,6 +109,7 @@ function migrate(PDO $db): void {
             location TEXT,
             duration_min INTEGER NOT NULL DEFAULT 30,
             tz TEXT NOT NULL DEFAULT 'UTC',
+            type TEXT NOT NULL DEFAULT 'weekly',
             availability TEXT NOT NULL DEFAULT '{}',
             horizon_days INTEGER NOT NULL DEFAULT 60,
             min_notice_hours INTEGER NOT NULL DEFAULT 4,
@@ -116,6 +117,24 @@ function migrate(PDO $db): void {
             paused INTEGER NOT NULL DEFAULT 0,
             created_at INTEGER NOT NULL,
             updated_at INTEGER NOT NULL
+        );
+        -- Calendar pages place availability on specific dates (start_hm/end_hm are 'H:i' wall-clock
+        -- in the page tz). Weekly pages ignore this table; their template stays in booking_pages.availability.
+        CREATE TABLE IF NOT EXISTS booking_windows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            page_id INTEGER NOT NULL,
+            day TEXT NOT NULL,
+            start_hm TEXT NOT NULL,
+            end_hm TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        );
+        -- Per-page blocked dates (both types). A block hides a date on this page only; it never
+        -- deletes calendar windows, so unblocking restores them. Org-wide days off live in blocked_dates.
+        CREATE TABLE IF NOT EXISTS booking_page_blocks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            page_id INTEGER NOT NULL,
+            day TEXT NOT NULL,
+            created_at INTEGER NOT NULL
         );
         CREATE TABLE IF NOT EXISTS bookings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -146,7 +165,21 @@ function migrate(PDO $db): void {
         CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_active ON bookings(user_id, start_utc) WHERE status = 'active';
         CREATE UNIQUE INDEX IF NOT EXISTS idx_blocked_uday ON blocked_dates(user_id, day);
         CREATE INDEX IF NOT EXISTS idx_blocked_user ON blocked_dates(user_id);
+        CREATE INDEX IF NOT EXISTS idx_bwindows_page ON booking_windows(page_id, day);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_bpblocks_pday ON booking_page_blocks(page_id, day);
+        CREATE INDEX IF NOT EXISTS idx_bpblocks_page ON booking_page_blocks(page_id);
     ");
+
+    // Zero-step upgrade: installs created before calendar pages have booking_pages without a `type`
+    // column. Add it once, guarded by a PRAGMA check so re-running migrations stays a no-op. Existing
+    // rows default to 'weekly', preserving every weekly page's behaviour untouched.
+    $hasType = false;
+    foreach ($db->query('PRAGMA table_info(booking_pages)') as $col) {
+        if ($col['name'] === 'type') { $hasType = true; break; }
+    }
+    if (!$hasType) {
+        $db->exec("ALTER TABLE booking_pages ADD COLUMN type TEXT NOT NULL DEFAULT 'weekly'");
+    }
 }
 
 /** Read a setting (cached per request). */
