@@ -1,10 +1,12 @@
 # TimePool
 
-A free group availability poll you can host yourself. Think Doodle, minus the subscription. Built for nonprofits and small teams who already pay for cheap shared hosting and don't have a developer on call.
+A free scheduling tool you can host yourself. Think Doodle *and* Calendly, minus the subscriptions. Built for nonprofits and small teams who already pay for cheap shared hosting and don't have a developer on call.
 
-The flow: you propose a few possible meeting times and share a link. Anyone with the link marks each time Yes, If-need-be, or No. No accounts. Answers land in a grid, you pick the winning time, and everyone gets one-click Add to Calendar links. Times show in each person's own timezone automatically.
+The group flow: you propose a few possible meeting times and share a link. Anyone with the link marks each time Yes, If-need-be, or No. No accounts. Answers land in a grid, you pick the winning time, and everyone gets one-click Add to Calendar links. Times show in each person's own timezone automatically.
 
-> TimePool finds one time that works for a whole *group*, Doodle-style. A personal 1:1 booking page (the Calendly job) is a different tool.
+The 1:1 flow: you set your weekly availability once and share a booking link. Visitors pick an open slot, book it with just a name and email, and get calendar links plus a manage link to cancel. Double-booking is blocked at the database level.
+
+> TimePool does both jobs: group polls that find one time for everyone (the Doodle job) and personal booking pages built from your availability (the Calendly job).
 
 ---
 
@@ -22,6 +24,7 @@ The flow: you propose a few possible meeting times and share a link. Anyone with
   - [Data Model](#data-model)
   - [Timezone Handling](#timezone-handling)
   - [Blind Polls](#blind-polls)
+  - [1:1 Booking](#11-booking)
   - [Security Model](#security-model)
 - [Configuration](#configuration)
 - [Routes Reference](#routes-reference)
@@ -31,7 +34,7 @@ The flow: you propose a few possible meeting times and share a link. Anyone with
 - [Backup & Restore](#backup--restore)
 - [Updating](#updating)
 - [Troubleshooting](#troubleshooting)
-- [Out of Scope (v1)](#out-of-scope-v1)
+- [Out of Scope](#out-of-scope)
 - [License](#license)
 
 ---
@@ -39,13 +42,14 @@ The flow: you propose a few possible meeting times and share a link. Anyone with
 ## Key Features
 
 - **Group polls.** Propose timed slots or all-day options. Participants vote Yes / If-need-be / No.
+- **1:1 booking pages (Calendly-style).** Set weekly availability per page — duration, booking horizon, minimum notice, buffers between meetings, and days off. Visitors book an open slot from a public link with just a name and email, get an .ics plus Google/Outlook links, and can cancel from a manage link. A partial unique index makes double-booking impossible, even across an organizer's other pages.
 - **No accounts for participants.** They respond from a public link with just a name, and can come back later to change their answer.
 - **Timezones handled.** Slots are stored as absolute UTC instants and shown in each viewer's local time. There's a manual override if the auto-detect guesses wrong.
 - **Best-slot ranking.** The leading time gets a star. If-need-be always ranks below Yes.
 - **Blind polls** (optional, per poll). Participants can't see anyone else's answers until they submit their own.
 - **Deadlines.** Set a response deadline and the poll closes itself.
 - **Finalize + calendar.** Pick the winning time. Everyone gets Add to Google / Outlook links and a downloadable .ics file.
-- **Email is optional.** With SMTP configured, TimePool sends poll invites, organizer invitations, new-response alerts, deadline reminders, and confirmations. Without it, you share links by hand and everything still works.
+- **Email is optional.** With SMTP configured, TimePool sends poll invites, organizer invitations, new-response alerts, deadline reminders, booking confirmations, and cancellation notices. Without it, you share links by hand and everything still works.
 - **Team accounts.** Admins invite organizers by email; invitees set their own password from the invitation link. Everyone can change their own name and password from their profile.
 - **One-file installer.** A browser wizard sets everything up. No terminal, no separate database server.
 - **Your branding.** Organization name, logo, and accent color.
@@ -137,6 +141,7 @@ A small, deliberately boring front-controller app. No framework. The goal is cod
 │   ├── db.php              # PDO/SQLite connection + schema migration + settings
 │   ├── auth.php            # Users, login, sessions
 │   ├── poll.php            # Poll/slot/response model, tally/ranking, timezone, rate limit
+│   ├── booking.php         # Booking pages, DST-safe slot generation, conflict-safe booking
 │   ├── ics.php             # .ics generation + Google/Outlook add-to-calendar links
 │   ├── mailer.php          # Minimal SMTP client (optional email)
 │   ├── notify.php          # Invites, alerts, reminders, confirmations (+ absolute URLs)
@@ -145,6 +150,7 @@ A small, deliberately boring front-controller app. No framework. The goal is cod
 │   │   ├── auth.php         # login/logout/forgot/reset, profile, healthz
 │   │   ├── polls.php        # dashboard, create/edit/manage/finalize/delete/invite
 │   │   ├── public.php       # public respond page, submit, .ics, logo
+│   │   ├── booking.php      # booking pages admin + public booking/manage/cancel
 │   │   └── settings.php     # branding, SMTP, organizer management
 │   └── views/              # PHP templates (layout, public, login, poll_form, grid, …)
 ├── data/                  # CREATED BY INSTALLER (gitignore this)
@@ -153,7 +159,8 @@ A small, deliberately boring front-controller app. No framework. The goal is cod
 │   ├── uploads/            # Logo
 │   └── .htaccess           # Denies all web access
 ├── docs/INSTALL.md        # Non-technical install guide
-├── specs/timepool.md      # The product spec (source of truth)
+├── specs/timepool.md      # The group-poll spec (source of truth)
+├── specs/booking.md       # The 1:1 booking spec
 └── tests/run.php          # Self-check suite
 ```
 
@@ -205,6 +212,17 @@ activity       id, poll_id, message, created_at        # in-app activity feed
 settings       key, value                              # org name, logo, accent, SMTP, …
 
 rate           ip, ts                                  # per-IP rate-limit ledger
+
+booking_pages  id, user_id, public_token (unique), title, description, location,
+               duration_min, tz, availability (JSON weekly windows),
+               horizon_days, min_notice_hours, buffer_min, paused,
+               created_at, updated_at
+
+bookings       id, page_id, user_id, start_utc, duration_min, name, email, note,
+               manage_token (unique), status (active|cancelled), ip,
+               created_at, cancelled_at
+
+blocked_dates  id, user_id, day                        # organizer's days off
 ```
 
 **Identity without accounts.** Each participant row gets an unguessable `edit_token`. It lives in a cookie and doubles as a shareable edit link. Two people named John stay separate rows, and anyone can come back later to change their own answer.
@@ -214,10 +232,19 @@ rate           ip, ts                                  # per-IP rate-limit ledge
 - Organizers enter slots in their own timezone. Timed slots are converted to absolute UTC instants (`slots.start_utc`), so a 2pm meeting stays 2pm across daylight-saving changes.
 - The server renders a fallback label in the organizer's timezone. Then `assets/app.js` re-renders every `<time data-utc>` element in the viewer's detected timezone. A manual picker ("Show times in …") is saved in `localStorage`.
 - All-day slots are stored as plain dates (`slots.date`) and look the same everywhere.
+- Public booking pages go further for the no-JS case: a server-rendered "Show times in …" picker round-trips via `?tz=` and the server re-renders slot times *and* day grouping in the chosen zone. With JS on, the detected zone is applied with a pre-paint redirect instead. A small alias map covers recent IANA renames (`Europe/Kyiv` ↔ `Europe/Kiev`), so a modern browser on a host with stale tzdata still gets correct local times.
 
 ### Blind Polls
 
 When a poll has `blind = 1`, a participant who hasn't responded sees no other answers and no tallies. After they submit (a cookie marks them), the full grid appears. The organizer always sees everything from the manage view.
+
+### 1:1 Booking
+
+Each booking page stores weekly availability as wall-clock windows in the page's timezone. Open slots are generated date-by-date inside the booking horizon — converted to UTC per date, so a 9 am window stays 9 am across DST — then filtered by minimum notice, the organizer's blocked dates, and every existing active booking on **any** of that organizer's pages (buffers included).
+
+Booking a slot re-validates inside a `BEGIN IMMEDIATE` transaction, and a partial unique index (`bookings(user_id, start_utc) WHERE status = 'active'`) is the hard guarantee: two people racing for the same slot can never both win — the loser gets a friendly "just taken" message. Cancelled rows keep their history but free the slot for rebooking.
+
+A booking stores its own start and duration, so editing a page never rewrites existing appointments. Deleting a page is refused while upcoming bookings exist.
 
 ### Security Model
 
@@ -279,6 +306,17 @@ There is no `.env` file. Configuration splits between a generated PHP file and a
 | GET | `/p/{token}` | Public respond page |
 | POST | `/p/{token}` | Submit / edit a response |
 | GET | `/p/{token}/ics?slot=final` | Download the .ics |
+| GET | `/booking` | Booking pages + upcoming/past bookings + days off |
+| GET/POST | `/booking/new` | Create a booking page |
+| GET/POST | `/booking/{id}/edit` | Edit a booking page |
+| POST | `/booking/{id}/pause` `…/delete` | Pause/resume, delete a page |
+| POST | `/booking/bookings/{id}/cancel` | Organizer cancels a booking |
+| POST | `/booking/daysoff`, `/booking/daysoff/{id}/delete` | Add / remove a day off |
+| GET | `/b/{token}` | Public booking page (open slots) |
+| POST | `/b/{token}` | Book a slot |
+| GET | `/m/{token}` | Invitee confirmation / manage page |
+| GET/POST | `/m/{token}/cancel` | Invitee cancel (confirm step) |
+| GET | `/m/{token}/ics` | Download the booking .ics |
 
 ---
 
@@ -305,7 +343,7 @@ Two layers. Both run with just PHP and curl.
 php tests/run.php
 ```
 
-This covers the logic most likely to break quietly: UTC storage across DST, best-slot ranking (If-need-be below Yes), edit-token de-duplication, deadline auto-close, ICS generation, invite/reset token expiry, and base-path/query-string URL building. Expected output ends with `39 passed, 0 failed`.
+This covers the logic most likely to break quietly: UTC storage across DST, best-slot ranking (If-need-be below Yes), edit-token de-duplication, deadline auto-close, ICS generation, invite/reset token expiry, base-path/query-string URL building, and the booking engine — DST-safe slot generation, minimum notice/horizon/buffer exclusion, cross-page conflict blocking, database-level double-booking rejection, cancellation reopening a slot, blocked dates, timezone resolution and rename aliasing, and the mail-header guard. Expected output ends with `85 passed, 0 failed`.
 
 ### End-to-end (HTTP)
 
@@ -410,9 +448,9 @@ That's the safety lock. To genuinely reinstall, remove `data/config.php`. That d
 
 ---
 
-## Out of Scope (v1)
+## Out of Scope
 
-Left out on purpose: Calendly-style 1:1 booking, per-slot capacity caps, Google Calendar OAuth sync, multi-tenant hosting and billing, native mobile apps, recurring polls, and shipped translations (UI strings are centralized for future i18n, but the app is English-only today). See [`specs/timepool.md`](specs/timepool.md) for the full contract.
+Left out on purpose: per-slot capacity caps, Google Calendar OAuth sync and free/busy reading, group/round-robin booking events, multi-tenant hosting and billing, native mobile apps, recurring polls, and shipped translations (UI strings are centralized for future i18n, but the app is English-only today). See [`specs/timepool.md`](specs/timepool.md) and [`specs/booking.md`](specs/booking.md) for the full contracts.
 
 ---
 
