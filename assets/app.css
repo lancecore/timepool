@@ -6,7 +6,7 @@
   --bg:#f6f7fb; --surface:#fff; --surface-2:#f0f1f7;
   --ink:#1a1a2e; --ink-2:#5a5a72; --muted:#8a8aa3;
   --border:#e4e4ef; --border-strong:#d2d2e0;
-  --yes:#1f9d6b; --yes-bg:#e7f7ef; --maybe:#c78a16; --maybe-bg:#fbf2dd; --no:#cdd0db; --no-bg:#f3f4f8;
+  --yes:#1f9d6b; --yes-bg:#e7f7ef; --maybe:#c78a16; --maybe-bg:#fbf2dd; --no:#d6455d; --no-bg:#fbe9ec;
   --ok:#1f9d6b; --danger:#d6455d; --live:#5b5bd6;
   --shadow:0 1px 2px rgba(20,20,46,.04),0 6px 20px rgba(20,20,46,.06);
   --radius:14px; --radius-sm:9px;
@@ -18,7 +18,7 @@
   --bg:#0f1018; --surface:#191a25; --surface-2:#21222f;
   --ink:#eef0f7; --ink-2:#b9bbcc; --muted:#8689a0;
   --border:#2b2c3b; --border-strong:#3a3b4e;
-  --no:#3a3b4e; --no-bg:#23242f;
+  --no-bg:#33161c;
   --yes-bg:#16332a; --maybe-bg:#332a16;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
 }
@@ -156,7 +156,7 @@ textarea.log{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fo
 .cell span{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;font-weight:700}
 .c-yes span{background:var(--yes-bg);color:var(--yes)}
 .c-maybe span{background:var(--maybe-bg);color:var(--maybe)}
-.c-no span{background:var(--no-bg);color:var(--muted)}
+.c-no span{background:var(--no-bg);color:var(--no)}
 .t-yes{color:var(--yes);font-weight:700}
 .t-maybe{color:var(--maybe);font-weight:600}
 .cmt{cursor:help}
@@ -181,11 +181,12 @@ textarea.log{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fo
 .seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:9px;overflow:hidden;background:var(--surface-2)}
 .seg input{position:absolute;opacity:0;width:1px;height:1px}
 .seg label{padding:8px 14px;font-weight:600;font-size:.86rem;cursor:pointer;color:var(--ink-2);border-right:1px solid var(--border);
-  transition:background .12s ease,color .12s ease;margin:0;user-select:none}
+  transition:background .12s ease,color .12s ease;margin:0;-webkit-user-select:none;user-select:none;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .seg label:last-child{border-right:0}
 .seg input:checked+label.seg-yes{background:var(--yes);color:#fff}
 .seg input:checked+label.seg-maybe{background:var(--maybe);color:#fff}
-.seg input:checked+label.seg-no{background:var(--no);color:var(--ink)}
+.seg input:checked+label.seg-no{background:var(--no);color:#fff}
 .seg label:hover{background:var(--border)}
 .seg input:focus-visible+label{outline:2px solid var(--accent);outline-offset:-2px}
 
