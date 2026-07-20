@@ -24,7 +24,10 @@ $stdDur = in_array($dur, [15, 30, 45, 60], true);
 $maxRanges = booking_max_ranges();
 ?>
 <div class="page-head"><h1><?= $isEdit ? 'Edit booking page' : 'New booking page' ?></h1>
-  <a class="btn btn-ghost btn-sm" href="<?= url('/booking') ?>">Back</a>
+  <div class="head-actions">
+    <?php if ($isEdit): ?><a class="btn btn-ghost btn-sm" href="<?= url('/booking/' . $page['id'] . '/calendar') ?>">Calendar</a><?php endif; ?>
+    <a class="btn btn-ghost btn-sm" href="<?= url('/booking') ?>">Back</a>
+  </div>
 </div>
 
 <?php if ($isEdit): $link = absolute_url('/b/' . $page['public_token']); ?>

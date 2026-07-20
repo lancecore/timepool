@@ -50,6 +50,7 @@ $routes = [
     ['GET',  '#^/booking/(\d+)/edit$#',            'booking_edit'],
     ['POST', '#^/booking/(\d+)/edit$#',            'booking_update'],
     ['POST', '#^/booking/(\d+)/windows$#',         'booking_save_week'],
+    ['GET',  '#^/booking/(\d+)/calendar$#',        'booking_month'],
     ['GET',  '#^/booking/(\d+)/copy-week$#',       'booking_copy_week_confirm'],
     ['POST', '#^/booking/(\d+)/copy-week$#',       'booking_copy_week_do'],
     ['POST', '#^/booking/(\d+)/blocks$#',          'booking_block_add'],

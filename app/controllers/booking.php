@@ -177,6 +177,49 @@ function booking_update(string $id): void {
     redirect('/booking/' . $page['id'] . '/edit');
 }
 
+/**
+ * Organizer month calendar for one page: every active booking (past and future) placed on its
+ * date, plus per-day open-slot counts, day-off/blocked markers, and month navigation. Days are
+ * bucketed in the page's own timezone so they match the week editor and the public page.
+ */
+function booking_month(string $id): void {
+    [, $page] = own_booking_page($id);
+    $tz = new DateTimeZone((string)$page['tz']);
+    $today = booking_today($page);
+
+    $m = (string)param('month', substr($today, 0, 7));
+    if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $m)) $m = substr($today, 0, 7);
+    $weeks = booking_month_weeks($m . '-01');
+
+    // Grid bounds in UTC: first shown day 00:00 through the day after the last shown day 00:00.
+    $fromUtc = (new DateTime($weeks[0][0] . ' 00:00:00', $tz))->getTimestamp();
+    $toUtc = (new DateTime(booking_shift_date($weeks[count($weeks) - 1][6], 1) . ' 00:00:00', $tz))->getTimestamp();
+
+    $booked = [];
+    foreach (bookings_for_page_between((int)$page['id'], $fromUtc, $toUtc) as $b) {
+        $d = (new DateTime('@' . $b['start_utc']))->setTimezone($tz);
+        $booked[$d->format('Y-m-d')][] = ['time' => $d->format('g:i A'), 'b' => $b];
+    }
+
+    $openCount = [];
+    foreach (booking_open_slots($page) as $s) {
+        $day = (new DateTime('@' . $s['start_utc']))->setTimezone($tz)->format('Y-m-d');
+        $openCount[$day] = ($openCount[$day] ?? 0) + 1;
+    }
+
+    view('booking_month', [
+        'title' => 'Calendar · ' . $page['title'],
+        'page' => $page,
+        'month' => $m,
+        'weeks' => $weeks,
+        'today' => $today,
+        'booked' => $booked,
+        'openCount' => $openCount,
+        'blockedOrg' => blocked_dates_set((int)$page['user_id']),
+        'blockedPage' => page_blocks_set((int)$page['id']),
+    ]);
+}
+
 /* ---------------- Calendar pages: week editor, copy-week, per-page blocks ---------------- */
 
 /** Read the week editor's date windows from the form into ['Y-m-d' => [[start,end],...]]. */

@@ -32,6 +32,7 @@ $upcoming = array_reverse($upcoming); // soonest first
           </div>
         </div>
         <div class="head-actions">
+          <a class="btn btn-ghost btn-sm" href="<?= url('/booking/' . $p['id'] . '/calendar') ?>">Calendar</a>
           <a class="btn btn-ghost btn-sm" href="<?= url('/booking/' . $p['id'] . '/edit') ?>">Edit</a>
           <form method="post" action="<?= url('/booking/' . $p['id'] . '/pause') ?>" class="inline">
             <?= csrf_field() ?><input type="hidden" name="paused" value="<?= !empty($p['paused']) ? '0' : '1' ?>">

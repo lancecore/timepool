@@ -24,12 +24,16 @@ $hasLogo = (string)setting('logo_file', '') !== '';
       <span><?= e($org) ?></span>
     </a>
     <nav class="nav" aria-label="Main">
-      <a href="<?= url('/dashboard') ?>">Polls</a>
-      <a href="<?= url('/booking') ?>">Booking</a>
+      <?php
+        $r = $__route ?? current_route();
+        $cur = function (bool $on): string { return $on ? ' aria-current="page"' : ''; };
+      ?>
+      <a href="<?= url('/dashboard') ?>"<?= $cur($r === '/dashboard' || str_starts_with($r, '/polls')) ?>>Polls</a>
+      <a href="<?= url('/booking') ?>"<?= $cur(str_starts_with($r, '/booking')) ?>>Booking</a>
       <a class="btn btn-sm" href="<?= url('/polls/new') ?>">New poll</a>
       <?php if ($me && $me['role'] === 'admin'): ?>
-        <a href="<?= url('/users') ?>">Organizers</a>
-        <a href="<?= url('/settings') ?>">Settings</a>
+        <a href="<?= url('/users') ?>"<?= $cur(str_starts_with($r, '/users')) ?>>Organizers</a>
+        <a href="<?= url('/settings') ?>"<?= $cur(str_starts_with($r, '/settings') || str_starts_with($r, '/errors')) ?>>Settings</a>
       <?php endif; ?>
       <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
       <?php if ($me): ?>

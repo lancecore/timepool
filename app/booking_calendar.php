@@ -105,6 +105,25 @@ function copy_previous_week(int $pageId, string $targetMonday, string $todayStr)
     return ['ok' => true];
 }
 
+/* ---------------- Organizer month calendar ---------------- */
+
+/** Active bookings for one page starting in [$fromUtc, $toUtc), soonest first. */
+function bookings_for_page_between(int $pageId, int $fromUtc, int $toUtc): array {
+    $s = db()->prepare("SELECT * FROM bookings WHERE page_id = ? AND status = 'active' AND start_utc >= ? AND start_utc < ? ORDER BY start_utc");
+    $s->execute([$pageId, $fromUtc, $toUtc]);
+    return $s->fetchAll();
+}
+
+/** Monday-first weeks (each an array of 7 'Y-m-d') covering the month that starts at $first ('Y-m-01'). */
+function booking_month_weeks(string $first): array {
+    $last = (new DateTime($first . ' 00:00:00', new DateTimeZone('UTC')))->modify('last day of this month')->format('Y-m-d');
+    $weeks = [];
+    for ($d = booking_week_monday($first); $d <= $last; $d = booking_shift_date($d, 7)) {
+        $weeks[] = booking_week_dates($d);
+    }
+    return $weeks;
+}
+
 /* ---------------- Per-page blocked dates (both types) ---------------- */
 
 function page_blocks_for_page(int $pageId): array {

@@ -406,6 +406,19 @@ ok(validate_week_windows(['2027-05-10' => [['10:00', '09:00']]], '2027-05-01') !
 ok(validate_week_windows(['2027-05-10' => [['09:00', '11:00'], ['10:30', '12:00']]], '2027-05-01') !== null, 'overlapping ranges on one date are rejected');
 ok(validate_week_windows(['2027-05-10' => [['09:00', '25:00']]], '2027-05-01') !== null, 'an invalid HH:MM value is rejected');
 
+// --- Month calendar: grid math + bookings-in-range query ---
+$aprWeeks = booking_month_weeks('2027-04-01');
+ok(count($aprWeeks) === 5, 'April 2027 grid spans five Monday-first weeks');
+ok($aprWeeks[0][0] === '2027-03-29' && $aprWeeks[4][6] === '2027-05-02', 'grid runs Mon Mar 29 through Sun May 2');
+ok(booking_month_weeks('2027-02-01')[0][0] === '2027-02-01', 'a month starting on Monday starts its own grid');
+$mbFrom = $epoch('2027-03-29 00:00', 'UTC');
+$mbTo = $epoch('2027-05-03 00:00', 'UTC');
+$mb = bookings_for_page_between($calBufId, $mbFrom, $mbTo);
+ok(count($mb) === 1 && (int)$mb[0]['start_utc'] === $calBook, 'month range returns the page\'s active booking');
+$insBooking($calBufId, $calBufU, $epoch('2027-04-08 10:00', 'UTC'), 'calbufc', 'cancelled');
+ok(count(bookings_for_page_between($calBufId, $mbFrom, $mbTo)) === 1, 'cancelled bookings are not shown on the month calendar');
+ok(bookings_for_page_between($calBufId, $mbFrom, $epoch('2027-04-07 10:00', 'UTC')) === [], 'range end is exclusive');
+
 // --- Per-page block hides windows without deleting them; unblock restores ---
 $blkU = create_user('bookpblock@test.org', random_token(12), 'PBlock', 'organizer');
 $blkId = $mkCal($blkU);
