@@ -52,46 +52,38 @@ function render_grid(array $poll, array $slots, array $participants, array $resp
     if (!$slots) { echo '<p class="muted">No time slots yet.</p>'; return; }
     $best = $tally['best'];
     $counts = $tally['counts'];
-    // With no participant rows (results hidden, or a poll with zero responses) the grid is totals-only:
-    // drop the "Participant" row header and describe the table as per-slot totals for screen readers.
+    // Transposed: one row per proposed time, so results grow down the page instead of sideways.
+    // With no participants (results hidden, or zero responses) it's a two-column totals list.
     $hasRows = !empty($participants);
     ?>
     <div class="grid-scroll">
       <table class="grid">
-        <caption class="sr-only"><?= $hasRows ? 'Availability grid. Rows are participants, columns are proposed times. ✓ means yes, ~ means if need be, ✕ means no.' : 'Availability totals. Columns are proposed times; the bottom row tallies responses.' ?></caption>
+        <caption class="sr-only"><?= $hasRows ? 'Availability grid. Rows are proposed times, columns are participants. ✓ means yes, ~ means if need be, ✕ means no.' : 'Availability totals. Rows are proposed times; the Totals column tallies responses.' ?></caption>
         <thead>
           <tr>
-            <th scope="col" class="grid-name"><?= $hasRows ? 'Participant' : '' ?></th>
-            <?php foreach ($slots as $s): $isBest = in_array((int)$s['id'], $best, true); ?>
-              <th scope="col" class="<?= $isBest ? 'is-best' : '' ?>">
-                <time class="js-time"<?= time_attr($s) ?>><?= e(slot_label($s, $poll['organizer_tz'])) ?></time>
-                <?php if ($isBest): ?><span class="best-badge" title="Leading time">★</span><?php endif; ?>
-              </th>
+            <th scope="col" class="grid-name">Time</th>
+            <?php foreach ($participants as $p): ?>
+              <th scope="col"><?= e($p['name']) ?><?php if (!empty($p['comment'])): ?> <span class="cmt" title="<?= e($p['comment']) ?>">💬</span><?php endif; ?></th>
             <?php endforeach; ?>
+            <th scope="col">Totals</th>
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($participants as $p): ?>
-            <tr>
-              <th scope="row" class="grid-name"><?= e($p['name']) ?>
-                <?php if (!empty($p['comment'])): ?><span class="cmt" title="<?= e($p['comment']) ?>">💬</span><?php endif; ?>
+          <?php foreach ($slots as $s): $sid = (int)$s['id']; $isBest = in_array($sid, $best, true); $c = $counts[$sid]; ?>
+            <tr<?= $isBest ? ' class="is-best"' : '' ?>>
+              <th scope="row" class="grid-name">
+                <time class="js-time"<?= time_attr($s) ?>><?= e(slot_label($s, $poll['organizer_tz'])) ?></time>
+                <?php if ($isBest): ?><span class="best-badge" title="Leading time">★</span><?php endif; ?>
               </th>
-              <?php foreach ($slots as $s): $c = $responses[(int)$p['id']][(int)$s['id']] ?? 'no'; ?>
-                <td class="cell <?= choice_class($c) ?>"><span aria-label="<?= e($c) ?>"><?= choice_mark($c) ?></span></td>
+              <?php foreach ($participants as $p): $ch = $responses[(int)$p['id']][$sid] ?? 'no'; ?>
+                <td class="cell <?= choice_class($ch) ?>"><span aria-label="<?= e($ch) ?>"><?= choice_mark($ch) ?></span></td>
               <?php endforeach; ?>
+              <td class="totals">
+                <span class="t-yes" title="Yes"><?= $c['yes'] ?></span><?php if ($c['maybe']): ?> <span class="t-maybe" title="If need be">(<?= $c['maybe'] ?>)</span><?php endif; ?>
+              </td>
             </tr>
           <?php endforeach; ?>
         </tbody>
-        <tfoot>
-          <tr>
-            <th scope="row" class="grid-name">Totals</th>
-            <?php foreach ($slots as $s): $c = $counts[(int)$s['id']]; $isBest = in_array((int)$s['id'], $best, true); ?>
-              <td class="totals <?= $isBest ? 'is-best' : '' ?>">
-                <span class="t-yes" title="Yes"><?= $c['yes'] ?></span><?php if ($c['maybe']): ?> <span class="t-maybe" title="If need be">(<?= $c['maybe'] ?>)</span><?php endif; ?>
-              </td>
-            <?php endforeach; ?>
-          </tr>
-        </tfoot>
       </table>
     </div>
     <?php

@@ -147,12 +147,11 @@ textarea.log{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fo
 .tz-pick select{width:auto;margin:0;padding:5px 8px;font-size:.84rem}
 .grid-scroll{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow);margin-bottom:18px}
 .grid{border-collapse:collapse;width:100%;font-size:.9rem}
-.grid th,.grid td{border-bottom:1px solid var(--border);border-right:1px solid var(--border);padding:10px 12px;text-align:center;white-space:nowrap}
+.grid th,.grid td{border-bottom:1px solid var(--border);border-right:1px solid var(--border);padding:12px 20px;text-align:center;white-space:nowrap}
 .grid thead th{background:var(--surface-2);font-weight:600;color:var(--ink-2);position:sticky;top:0}
 .grid .grid-name{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1;font-weight:600;min-width:130px}
 .grid thead .grid-name{z-index:2;background:var(--surface-2)}
-.grid tfoot td,.grid tfoot th{background:var(--surface-2);font-weight:600}
-.grid th.is-best,.grid td.is-best{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.grid td.totals{font-weight:600}
 .best-badge{color:var(--accent);margin-left:4px}
 .cell span{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;font-weight:700}
 .c-yes span{background:var(--yes-bg);color:var(--yes)}
@@ -238,6 +237,7 @@ textarea.log{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fo
 .grid tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--surface-2) 50%,transparent)}
 .grid tbody tr:hover td{background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
 .grid tbody tr:hover .grid-name{background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+.grid tbody tr.is-best th,.grid tbody tr.is-best td{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
 
 /* Motion-safe page entrance */
 @media(prefers-reduced-motion:no-preference){

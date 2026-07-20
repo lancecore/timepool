@@ -554,8 +554,7 @@ ok(strpos($hiddenOut, 'Participant') === false, 'hidden-case grid header cell do
 ok(strpos($hiddenOut, 'Rows are participants') === false, 'hidden-case caption does not claim rows are participants');
 ob_start(); render_grid($rgPoll, $rgSlots, $rgParts, [], $rgTally); $shownOut = ob_get_clean();
 ok(strpos($shownOut, 'Gridster') !== false, 'visible-case grid shows the participant name');
-ok(strpos($shownOut, 'Participant') !== false, 'visible-case grid keeps the "Participant" header');
-ok(strpos($shownOut, 'Rows are participants') !== false, 'visible-case grid keeps the original caption');
+ok(strpos($shownOut, 'columns are participants') !== false, 'visible-case caption describes participants as columns');
 
 // Returning-viewer pre-fill through the real assembly function public_poll_rows() (the visibility choke point).
 $vfId = create_poll($uid, ['title' => 'Prefill', 'organizer_tz' => 'UTC', 'blind' => 0], [
