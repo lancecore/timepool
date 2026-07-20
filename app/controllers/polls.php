@@ -44,6 +44,7 @@ function collect_poll_data(): array {
         'location'    => trim((string)param('location', '')),
         'organizer_tz'=> $tz,
         'blind'       => param('blind') ? 1 : 0,
+        'show_individual' => param('show_individual') ? 1 : 0,
         'deadline_utc'=> $deadline,
     ];
 }

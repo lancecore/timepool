@@ -13,14 +13,31 @@ function viewer_edit_token(array $poll): string {
     return (string)($_COOKIE['tp_edit_' . $poll['id']] ?? '');
 }
 
+/**
+ * Assemble the public results grid's rows: returns [$participants, $responses].
+ * Rows are withheld unless the organizer opted in (show_individual) and the blind gate is satisfied
+ * (blind + not-yet-responded still hides everyone). When rows are hidden, a returning viewer's own
+ * choices are still returned — [viewer_id => [slot_id => choice]] and nothing else — so their form
+ * pre-fills; $participants stays empty so render_grid() never renders any participant row. This is the
+ * single choke point for the visibility rules; tests exercise it directly.
+ */
+function public_poll_rows(array $poll, ?array $viewer): array {
+    $blindHide = !empty($poll['blind']) && !$viewer;
+    $hideRows = $blindHide || empty($poll['show_individual']);
+    if (!$hideRows) {
+        return [participants_for_poll((int)$poll['id']), responses_map((int)$poll['id'])];
+    }
+    $responses = $viewer ? [(int)$viewer['id'] => responses_for_participant((int)$viewer['id'])] : [];
+    return [[], $responses];
+}
+
 function public_poll(string $token): void {
     $poll = load_public_poll($token);
     $slots = slots_for_poll((int)$poll['id']);
     $viewer = participant_by_token((int)$poll['id'], viewer_edit_token($poll));
     $blindHide = !empty($poll['blind']) && !$viewer;
     $t = tally((int)$poll['id']);
-    $participants = $blindHide ? [] : participants_for_poll((int)$poll['id']);
-    $responses = $blindHide ? [] : responses_map((int)$poll['id']);
+    [$participants, $responses] = public_poll_rows($poll, $viewer);
     $final = $poll['final_slot_id'] ? slot_by_id((int)$poll['final_slot_id']) : null;
 
     view('poll_respond', [

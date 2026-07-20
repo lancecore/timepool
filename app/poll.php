@@ -70,8 +70,8 @@ function replace_slots(int $pollId, string $tz, array $rows): void {
 function create_poll(int $userId, array $data, array $slotRows): int {
     $db = db();
     $now = time();
-    $st = $db->prepare('INSERT INTO polls(user_id, public_token, title, description, location, organizer_tz, blind, deadline_utc, closed, created_at, updated_at)
-                        VALUES(?,?,?,?,?,?,?,?,0,?,?)');
+    $st = $db->prepare('INSERT INTO polls(user_id, public_token, title, description, location, organizer_tz, blind, show_individual, deadline_utc, closed, created_at, updated_at)
+                        VALUES(?,?,?,?,?,?,?,?,?,0,?,?)');
     $st->execute([
         $userId,
         random_token(9),
@@ -80,6 +80,7 @@ function create_poll(int $userId, array $data, array $slotRows): int {
         $data['location'] ?? '',
         $data['organizer_tz'],
         !empty($data['blind']) ? 1 : 0,
+        !empty($data['show_individual']) ? 1 : 0,
         $data['deadline_utc'] ?? null,
         $now, $now,
     ]);
@@ -90,10 +91,10 @@ function create_poll(int $userId, array $data, array $slotRows): int {
 
 function update_poll(int $pollId, array $data, array $slotRows): void {
     $db = db();
-    $st = $db->prepare('UPDATE polls SET title=?, description=?, location=?, organizer_tz=?, blind=?, deadline_utc=?, updated_at=? WHERE id=?');
+    $st = $db->prepare('UPDATE polls SET title=?, description=?, location=?, organizer_tz=?, blind=?, show_individual=?, deadline_utc=?, updated_at=? WHERE id=?');
     $st->execute([
         $data['title'], $data['description'] ?? '', $data['location'] ?? '',
-        $data['organizer_tz'], !empty($data['blind']) ? 1 : 0, $data['deadline_utc'] ?? null,
+        $data['organizer_tz'], !empty($data['blind']) ? 1 : 0, !empty($data['show_individual']) ? 1 : 0, $data['deadline_utc'] ?? null,
         time(), $pollId,
     ]);
     replace_slots($pollId, $data['organizer_tz'], $slotRows);
@@ -122,6 +123,7 @@ function duplicate_poll(int $pollId, int $userId): ?int {
         'location' => $poll['location'],
         'organizer_tz' => $poll['organizer_tz'],
         'blind' => $poll['blind'],
+        'show_individual' => $poll['show_individual'],
         'deadline_utc' => null,
     ], $rows);
 }
@@ -167,6 +169,15 @@ function participant_by_token(int $pollId, string $token): ?array {
     $s = db()->prepare('SELECT * FROM participants WHERE poll_id = ? AND edit_token = ?');
     $s->execute([$pollId, $token]);
     return $s->fetch() ?: null;
+}
+
+/** One participant's saved choices as [slot_id => choice]; used to pre-fill a returning editor's form. */
+function responses_for_participant(int $participantId): array {
+    $s = db()->prepare('SELECT slot_id, choice FROM responses WHERE participant_id = ?');
+    $s->execute([$participantId]);
+    $map = [];
+    foreach ($s as $r) $map[(int)$r['slot_id']] = $r['choice'];
+    return $map;
 }
 
 /** choices: [slot_id => 'yes'|'maybe'|'no']. Returns the participant's edit token. */

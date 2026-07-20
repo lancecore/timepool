@@ -40,6 +40,7 @@ function migrate(PDO $db): void {
             location TEXT,
             organizer_tz TEXT NOT NULL DEFAULT 'UTC',
             blind INTEGER NOT NULL DEFAULT 0,
+            show_individual INTEGER NOT NULL DEFAULT 0,
             deadline_utc INTEGER,
             closed INTEGER NOT NULL DEFAULT 0,
             final_slot_id INTEGER,
@@ -179,6 +180,17 @@ function migrate(PDO $db): void {
     }
     if (!$hasType) {
         $db->exec("ALTER TABLE booking_pages ADD COLUMN type TEXT NOT NULL DEFAULT 'weekly'");
+    }
+
+    // Zero-step upgrade: installs created before per-poll result visibility have `polls` without a
+    // `show_individual` column. Add it once, guarded by a PRAGMA check so re-running migrations stays a
+    // no-op. Existing rows default to 0, so every existing poll keeps hiding individual responses.
+    $hasShowIndividual = false;
+    foreach ($db->query('PRAGMA table_info(polls)') as $col) {
+        if ($col['name'] === 'show_individual') { $hasShowIndividual = true; break; }
+    }
+    if (!$hasShowIndividual) {
+        $db->exec("ALTER TABLE polls ADD COLUMN show_individual INTEGER NOT NULL DEFAULT 0");
     }
 }
 

@@ -61,12 +61,16 @@ if (!empty($poll['deadline_utc'])) {
     <button type="button" class="btn btn-ghost btn-sm" data-slot-add>+ Add time</button>
   </fieldset>
 
-  <details class="adv" <?= ($isEdit && (!empty($poll['blind']) || $deadlineDate)) ? 'open' : '' ?>>
+  <details class="adv" <?= ($isEdit && (!empty($poll['blind']) || !empty($poll['show_individual']) || $deadlineDate)) ? 'open' : '' ?>>
     <summary>Advanced options</summary>
     <div class="stack">
       <label class="check">
         <input type="checkbox" name="blind" value="1" <?= !empty($poll['blind']) ? 'checked' : '' ?>>
         <span>Hidden responses — participants can't see others' answers until they submit their own.</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" name="show_individual" value="1" <?= !empty($poll['show_individual']) ? 'checked' : '' ?>>
+        <span>Show individual responses — participants can see each person's name and answers, not just the totals.</span>
       </label>
       <div class="row-2">
         <label>Response deadline <span class="muted small">(optional)</span>

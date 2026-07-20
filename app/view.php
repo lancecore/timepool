@@ -52,13 +52,16 @@ function render_grid(array $poll, array $slots, array $participants, array $resp
     if (!$slots) { echo '<p class="muted">No time slots yet.</p>'; return; }
     $best = $tally['best'];
     $counts = $tally['counts'];
+    // With no participant rows (results hidden, or a poll with zero responses) the grid is totals-only:
+    // drop the "Participant" row header and describe the table as per-slot totals for screen readers.
+    $hasRows = !empty($participants);
     ?>
     <div class="grid-scroll">
       <table class="grid">
-        <caption class="sr-only">Availability grid. Rows are participants, columns are proposed times. ✓ means yes, ~ means if need be, ✕ means no.</caption>
+        <caption class="sr-only"><?= $hasRows ? 'Availability grid. Rows are participants, columns are proposed times. ✓ means yes, ~ means if need be, ✕ means no.' : 'Availability totals. Columns are proposed times; the bottom row tallies responses.' ?></caption>
         <thead>
           <tr>
-            <th scope="col" class="grid-name">Participant</th>
+            <th scope="col" class="grid-name"><?= $hasRows ? 'Participant' : '' ?></th>
             <?php foreach ($slots as $s): $isBest = in_array((int)$s['id'], $best, true); ?>
               <th scope="col" class="<?= $isBest ? 'is-best' : '' ?>">
                 <time class="js-time"<?= time_attr($s) ?>><?= e(slot_label($s, $poll['organizer_tz'])) ?></time>

@@ -15,6 +15,7 @@ require APP_DIR . '/helpers.php';
 require APP_DIR . '/db.php';
 require APP_DIR . '/auth.php';
 require APP_DIR . '/poll.php';
+require APP_DIR . '/view.php'; // render_grid (individual-results visibility checks)
 require APP_DIR . '/booking.php';
 require APP_DIR . '/booking_calendar.php';
 require APP_DIR . '/mailer.php'; // mail_header_safe (subject header-injection guard)
@@ -22,6 +23,8 @@ require APP_DIR . '/ics.php';
 require APP_DIR . '/notify.php'; // add_invites / invites_for_poll (cascade-delete checks)
 require APP_DIR . '/controllers/auth.php'; // reset_user_for_token (invite + reset links)
 require APP_DIR . '/controllers/booking.php'; // collect_booking_data (input-clamp checks)
+require APP_DIR . '/controllers/polls.php'; // responses_map (used by public_poll_rows)
+require APP_DIR . '/controllers/public.php'; // public_poll_rows (individual-results assembly)
 date_default_timezone_set('UTC');
 session_start(); // before any output; needed by the keep-input checks below
 
@@ -477,6 +480,118 @@ foreach (db()->query('PRAGMA table_info(booking_pages)') as $bc) $bpCols[$bc['na
 ok(isset($bpCols['type']), 'booking_pages.type is present after repeated migrations');
 ok(booking_page_by_id($calId)['type'] === 'calendar', 'a calendar page still round-trips after repeated migrations');
 ok((booking_windows_day_map($calId)['2027-04-07'] ?? []) === [['09:00', '11:00']], 'calendar windows survive repeated migrations');
+
+// --- Individual poll results hidden by default (show_individual) ---
+// Persistence: new polls hide individual responses; a poll created with the flag on stores 1.
+$siOffId = create_poll($uid, ['title' => 'SI off', 'organizer_tz' => 'UTC', 'blind' => 0], [
+    ['kind' => 'datetime', 'date' => '2026-07-15', 'time' => '09:00', 'duration' => 60],
+]);
+ok((int)poll_by_id($siOffId)['show_individual'] === 0, 'new poll defaults to show_individual = 0');
+$siOnId = create_poll($uid, ['title' => 'SI on', 'organizer_tz' => 'UTC', 'blind' => 0, 'show_individual' => 1], [
+    ['kind' => 'datetime', 'date' => '2026-07-15', 'time' => '10:00', 'duration' => 60],
+]);
+ok((int)poll_by_id($siOnId)['show_individual'] === 1, 'poll created with show_individual = 1 stores 1');
+
+// update_poll flips the flag both ways.
+$siRows = [['kind' => 'datetime', 'date' => '2026-07-15', 'time' => '10:00', 'duration' => 60]];
+update_poll($siOnId, ['title' => 'SI on', 'organizer_tz' => 'UTC', 'blind' => 0, 'show_individual' => 0], $siRows);
+ok((int)poll_by_id($siOnId)['show_individual'] === 0, 'update_poll turns show_individual off');
+update_poll($siOnId, ['title' => 'SI on', 'organizer_tz' => 'UTC', 'blind' => 0, 'show_individual' => 1], $siRows);
+ok((int)poll_by_id($siOnId)['show_individual'] === 1, 'update_poll turns show_individual back on');
+
+// duplicate_poll carries the flag to the copy (both states).
+ok((int)poll_by_id(duplicate_poll($siOnId, $uid))['show_individual'] === 1, 'duplicate_poll carries show_individual = 1');
+ok((int)poll_by_id(duplicate_poll($siOffId, $uid))['show_individual'] === 0, 'duplicate_poll carries show_individual = 0');
+
+// Migration: a legacy polls table (no show_individual) upgrades in one step; re-running is a no-op.
+$legacyPath = sys_get_temp_dir() . '/tp_legacy_' . getmypid() . '.sqlite';
+@unlink($legacyPath);
+$legacy = new PDO('sqlite:' . $legacyPath, null, null, [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+]);
+$legacy->exec("CREATE TABLE polls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, public_token TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL, description TEXT, location TEXT, organizer_tz TEXT NOT NULL DEFAULT 'UTC',
+    blind INTEGER NOT NULL DEFAULT 0, deadline_utc INTEGER, closed INTEGER NOT NULL DEFAULT 0,
+    final_slot_id INTEGER, nudged_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+)");
+$legacy->exec("INSERT INTO polls(user_id, public_token, title, organizer_tz, created_at, updated_at)
+               VALUES(1, 'legacytok', 'Legacy', 'UTC', 0, 0)");
+$legacyCols = [];
+foreach ($legacy->query('PRAGMA table_info(polls)') as $c) $legacyCols[$c['name']] = true;
+ok(!isset($legacyCols['show_individual']), 'legacy polls table lacks show_individual before migrate');
+
+migrate($legacy);
+$upgradedCols = [];
+foreach ($legacy->query('PRAGMA table_info(polls)') as $c) $upgradedCols[$c['name']] = true;
+ok(isset($upgradedCols['show_individual']), 'migrate() adds show_individual to a legacy polls table');
+ok((int)$legacy->query("SELECT show_individual FROM polls WHERE public_token = 'legacytok'")->fetch()['show_individual'] === 0,
+    'existing legacy poll reads show_individual = 0 after upgrade');
+$legacyMigOk = true;
+try { migrate($legacy); migrate($legacy); } catch (Throwable $e) { $legacyMigOk = false; }
+ok($legacyMigOk, 're-running migrate() on the upgraded legacy DB throws nothing (no-op)');
+$legacyCols2 = [];
+foreach ($legacy->query('PRAGMA table_info(polls)') as $c) $legacyCols2[$c['name']] = true;
+ok(isset($legacyCols2['show_individual']), 'show_individual persists after repeated migrations');
+$legacy = null;
+@unlink($legacyPath); @unlink($legacyPath . '-wal'); @unlink($legacyPath . '-shm');
+
+// Rendering: render_grid() shows totals but no names when participants are withheld (hidden case),
+// and shows the name when they're passed (visible case).
+$rgId = create_poll($uid, ['title' => 'Render', 'organizer_tz' => 'UTC', 'blind' => 0], [
+    ['kind' => 'datetime', 'date' => '2026-07-15', 'time' => '14:00', 'duration' => 60],
+]);
+$rgPoll = poll_by_id($rgId);
+$rgSlots = slots_for_poll($rgId);
+save_response($rgPoll, 'Gridster', '', [(int)$rgSlots[0]['id'] => 'yes'], '2.2.2.2', null);
+$rgParts = participants_for_poll($rgId);
+$rgTally = tally($rgId);
+ob_start(); render_grid($rgPoll, $rgSlots, [], [], $rgTally); $hiddenOut = ob_get_clean();
+ok(strpos($hiddenOut, 'Totals') !== false, 'hidden-case grid still renders the totals row');
+ok(strpos($hiddenOut, 'Gridster') === false, 'hidden-case grid contains no participant name');
+ok(strpos($hiddenOut, 'Participant') === false, 'hidden-case grid header cell does not read "Participant"');
+ok(strpos($hiddenOut, 'Rows are participants') === false, 'hidden-case caption does not claim rows are participants');
+ob_start(); render_grid($rgPoll, $rgSlots, $rgParts, [], $rgTally); $shownOut = ob_get_clean();
+ok(strpos($shownOut, 'Gridster') !== false, 'visible-case grid shows the participant name');
+ok(strpos($shownOut, 'Participant') !== false, 'visible-case grid keeps the "Participant" header');
+ok(strpos($shownOut, 'Rows are participants') !== false, 'visible-case grid keeps the original caption');
+
+// Returning-viewer pre-fill through the real assembly function public_poll_rows() (the visibility choke point).
+$vfId = create_poll($uid, ['title' => 'Prefill', 'organizer_tz' => 'UTC', 'blind' => 0], [
+    ['kind' => 'datetime', 'date' => '2026-07-15', 'time' => '14:00', 'duration' => 60],
+    ['kind' => 'datetime', 'date' => '2026-07-16', 'time' => '10:00', 'duration' => 60],
+]);
+$vfPoll = poll_by_id($vfId);
+$vfSlots = slots_for_poll($vfId);
+$vfA = (int)$vfSlots[0]['id'];
+$vfTok = save_response($vfPoll, 'Vera', '', [$vfA => 'yes', (int)$vfSlots[1]['id'] => 'no'], '3.3.3.1', null);
+save_response($vfPoll, 'Otto', '', [$vfA => 'no', (int)$vfSlots[1]['id'] => 'yes'], '3.3.3.2', null); // second, unrelated participant
+$vfViewer = participant_by_token($vfId, $vfTok);
+$vfOtto = null;
+foreach (participants_for_poll($vfId) as $p) { if ($p['name'] === 'Otto') $vfOtto = (int)$p['id']; }
+
+// flag 0 + viewer: rows withheld from the grid, but the viewer's own choices are retained for pre-fill.
+[$vfParts, $vfResp] = public_poll_rows($vfPoll, $vfViewer);
+ok($vfParts === [], 'flag-0 + viewer: no participant rows returned for the grid');
+ok(count($vfResp) === 1 && ($vfResp[(int)$vfViewer['id']][$vfA] ?? '') === 'yes', "flag-0 + viewer: only the viewer's own saved yes is returned");
+ok($vfOtto !== null && !isset($vfResp[$vfOtto]), 'flag-0 + viewer: no other participant entry is exposed');
+
+// flag 0 + no viewer: nothing at all.
+[$vfParts0, $vfResp0] = public_poll_rows($vfPoll, null);
+ok($vfParts0 === [] && $vfResp0 === [], 'flag-0 + no viewer: participants and responses both empty');
+
+// flag 1: full grid data (participants + responses) regardless of viewer.
+$vf1Id = create_poll($uid, ['title' => 'Shown', 'organizer_tz' => 'UTC', 'blind' => 0, 'show_individual' => 1], [
+    ['kind' => 'datetime', 'date' => '2026-07-15', 'time' => '14:00', 'duration' => 60],
+]);
+$vf1Poll = poll_by_id($vf1Id);
+$vf1Slots = slots_for_poll($vf1Id);
+save_response($vf1Poll, 'Wes', '', [(int)$vf1Slots[0]['id'] => 'yes'], '3.3.3.3', null);
+save_response($vf1Poll, 'Xan', '', [(int)$vf1Slots[0]['id'] => 'no'], '3.3.3.4', null);
+[$vf1Parts, $vf1Resp] = public_poll_rows($vf1Poll, null);
+ok(count($vf1Parts) === 2, 'flag-1: full participant list returned');
+ok(count($vf1Resp) === 2, 'flag-1: full responses map returned');
 
 echo "\n$pass passed, $fail failed\n";
 @unlink($tmp); @unlink($tmp . '-wal'); @unlink($tmp . '-shm');
