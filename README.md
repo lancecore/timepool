@@ -23,7 +23,7 @@ The 1:1 flow: you set your availability — a recurring weekly pattern, or a cal
   - [URL Strategy (subdomain, subfolder, no mod_rewrite)](#url-strategy)
   - [Data Model](#data-model)
   - [Timezone Handling](#timezone-handling)
-  - [Blind Polls](#blind-polls)
+  - [Result Visibility & Blind Polls](#result-visibility--blind-polls)
   - [1:1 Booking](#11-booking)
   - [Security Model](#security-model)
 - [Configuration](#configuration)
@@ -42,10 +42,11 @@ The 1:1 flow: you set your availability — a recurring weekly pattern, or a cal
 ## Key Features
 
 - **Group polls.** Propose timed slots or all-day options. Participants vote Yes / If-need-be / No.
-- **1:1 booking pages (Calendly-style).** Two page types: *weekly* (a recurring availability template) or *calendar* (windows placed on specific dates, edited week by week with a copy-previous-week button — for schedules that differ from one week to the next). Per page: duration, minimum notice, buffers between meetings, blocked dates, and (weekly only) a booking horizon. Visitors book an open slot from a public link with just a name and email, get an .ics plus Google/Outlook links, and can cancel from a manage link. A partial unique index makes double-booking impossible, even across an organizer's other pages of either type.
+- **1:1 booking pages (Calendly-style).** Two page types: *weekly* (a recurring availability template) or *calendar* (windows placed on specific dates, edited week by week with a copy-previous-week button — for schedules that differ from one week to the next). Per page: duration, minimum notice, buffers between meetings, blocked dates, and (weekly only) a booking horizon. Visitors book an open slot from a public link with just a name and email, get an .ics plus Google/Outlook links, and can cancel from a manage link. A partial unique index makes double-booking impossible, even across an organizer's other pages of either type. Each page has an organizer month calendar showing bookings, per-day open-slot counts, and blocked days at a glance.
 - **No accounts for participants.** They respond from a public link with just a name, and can come back later to change their answer.
 - **Timezones handled.** Slots are stored as absolute UTC instants and shown in each viewer's local time. There's a manual override if the auto-detect guesses wrong.
 - **Best-slot ranking.** The leading time gets a star. If-need-be always ranks below Yes.
+- **Totals-only results by default.** The public page shows per-slot tallies, not who answered what. A per-poll option shows individual names and answers; the organizer always sees the full grid.
 - **Blind polls** (optional, per poll). Participants can't see anyone else's answers until they submit their own.
 - **Deadlines.** Set a response deadline and the poll closes itself.
 - **Finalize + calendar.** Pick the winning time. Everyone gets Add to Google / Outlook links and a downloadable .ics file.
@@ -163,6 +164,7 @@ A small, deliberately boring front-controller app. No framework. The goal is cod
 ├── specs/timepool.md      # The group-poll spec (source of truth)
 ├── specs/booking.md       # The 1:1 booking spec
 ├── specs/booking-calendar.md # Calendar page type + per-page blocked dates spec
+├── specs/individual-results.md # Totals-only public results + per-poll opt-in spec
 └── tests/run.php          # Self-check suite
 ```
 
@@ -197,7 +199,7 @@ users          id, email (unique), password_hash, name, role (admin|organizer),
                active, reset_token, reset_expires, created_at
 
 polls          id, user_id, public_token (unique), title, description, location,
-               organizer_tz, blind, deadline_utc, closed, final_slot_id,
+               organizer_tz, blind, show_individual, deadline_utc, closed, final_slot_id,
                nudged_at, created_at, updated_at
 
 slots          id, poll_id, kind (datetime|date), start_utc, date,
@@ -241,9 +243,11 @@ blocked_dates  id, user_id, day                        # organizer's days off
 - All-day slots are stored as plain dates (`slots.date`) and look the same everywhere.
 - Public booking pages go further for the no-JS case: a server-rendered "Show times in …" picker round-trips via `?tz=` and the server re-renders slot times *and* day grouping in the chosen zone. With JS on, the detected zone is applied with a pre-paint redirect instead. A small alias map covers recent IANA renames (`Europe/Kyiv` ↔ `Europe/Kiev`), so a modern browser on a host with stale tzdata still gets correct local times.
 
-### Blind Polls
+### Result Visibility & Blind Polls
 
-When a poll has `blind = 1`, a participant who hasn't responded sees no other answers and no tallies. After they submit (a cookie marks them), the full grid appears. The organizer always sees everything from the manage view.
+By default, the public results grid is totals-only: per-slot tallies with best-slot highlighting, but no participant names or per-person rows (`polls.show_individual`, default off). A per-poll "Show individual responses" option under Advanced options restores the full grid. Either way, a returning participant's own saved answers still pre-fill their form — the hidden data simply never reaches the template.
+
+Blind polls compose with this: when a poll has `blind = 1`, a participant who hasn't responded sees no other answers and no tallies at all. After they submit (a cookie marks them), results appear per the visibility rule above. The organizer always sees everything from the manage view.
 
 ### 1:1 Booking
 
@@ -254,6 +258,8 @@ Either way, open slots are generated date-by-date — converted to UTC per date,
 Booking a slot re-validates inside a `BEGIN IMMEDIATE` transaction, and a partial unique index (`bookings(user_id, start_utc) WHERE status = 'active'`) is the hard guarantee: two people racing for the same slot can never both win — the loser gets a friendly "just taken" message. Cancelled rows keep their history but free the slot for rebooking.
 
 A booking stores its own start and duration, so editing a page never rewrites existing appointments. Deleting a page is refused while upcoming bookings exist.
+
+Each page also has an organizer-only month calendar (`/booking/{id}/calendar`): every booking placed on its date — bucketed in the page's own timezone, so it matches the week editor and the public page — plus per-day open-slot counts, day-off/blocked markers, and month navigation.
 
 ### Security Model
 
@@ -322,6 +328,7 @@ There is no `.env` file. Configuration splits between a generated PHP file and a
 | POST | `/booking/bookings/{id}/cancel` | Organizer cancels a booking |
 | POST | `/booking/daysoff`, `/booking/daysoff/{id}/delete` | Add / remove a day off |
 | POST | `/booking/{id}/windows` | Save a calendar week's windows |
+| GET | `/booking/{id}/calendar` | Organizer month calendar for a page |
 | GET/POST | `/booking/{id}/copy-week` | Copy previous week (confirm, then apply) |
 | POST | `/booking/{id}/blocks`, `…/blocks/{id}/delete` | Add / remove a per-page blocked date |
 | GET | `/b/{token}` | Public booking page (open slots) |
@@ -355,7 +362,7 @@ Two layers. Both run with just PHP and curl.
 php tests/run.php
 ```
 
-This covers the logic most likely to break quietly: UTC storage across DST, best-slot ranking (If-need-be below Yes), edit-token de-duplication, deadline auto-close, ICS generation, invite/reset token expiry, base-path/query-string URL building, and the booking engine — DST-safe slot generation for both page types, minimum notice/horizon/buffer exclusion, calendar windows and copy-week semantics, per-page blocks and days off, cross-page and cross-type conflict blocking, database-level double-booking rejection, cancellation reopening a slot, timezone resolution and rename aliasing, migration idempotency, and the mail-header guard. Expected output ends with `131 passed, 0 failed`.
+This covers the logic most likely to break quietly: UTC storage across DST, best-slot ranking (If-need-be below Yes), edit-token de-duplication, deadline auto-close, public result visibility (totals-only by default, blind interplay, returning-viewer pre-fill), ICS generation, invite/reset token expiry, base-path/query-string URL building, and the booking engine — DST-safe slot generation for both page types, minimum notice/horizon/buffer exclusion, calendar windows and copy-week semantics, month-grid week math, per-page blocks and days off, cross-page and cross-type conflict blocking, database-level double-booking rejection, cancellation reopening a slot, timezone resolution and rename aliasing, migration idempotency, and the mail-header guard. Expected output ends with `160 passed, 0 failed`.
 
 ### End-to-end (HTTP)
 
@@ -462,7 +469,7 @@ That's the safety lock. To genuinely reinstall, remove `data/config.php`. That d
 
 ## Out of Scope
 
-Left out on purpose: converting a booking page between weekly and calendar types, per-slot capacity caps, Google Calendar OAuth sync and free/busy reading, group/round-robin booking events, multi-tenant hosting and billing, native mobile apps, recurring polls, and shipped translations (UI strings are centralized for future i18n, but the app is English-only today). See [`specs/timepool.md`](specs/timepool.md), [`specs/booking.md`](specs/booking.md), and [`specs/booking-calendar.md`](specs/booking-calendar.md) for the full contracts.
+Left out on purpose: converting a booking page between weekly and calendar types, per-slot capacity caps, Google Calendar OAuth sync and free/busy reading, group/round-robin booking events, multi-tenant hosting and billing, native mobile apps, recurring polls, and shipped translations (UI strings are centralized for future i18n, but the app is English-only today). See [`specs/timepool.md`](specs/timepool.md), [`specs/booking.md`](specs/booking.md), [`specs/booking-calendar.md`](specs/booking-calendar.md), and [`specs/individual-results.md`](specs/individual-results.md) for the full contracts.
 
 ---
 
