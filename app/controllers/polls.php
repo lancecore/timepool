@@ -197,6 +197,50 @@ function poll_manage(string $id): void {
     ]);
 }
 
+/** Neutralize spreadsheet formula injection in participant-supplied cells. */
+function csv_guard(string $v): string {
+    return preg_match('/^[=+\-@\t\r]/', $v) ? "'" . $v : $v;
+}
+
+/** Full results grid as CSV: one row per participant, then per-choice totals. */
+function poll_results_csv(array $poll): string {
+    $slots = slots_for_poll((int)$poll['id']);
+    $tz = new DateTimeZone($poll['organizer_tz']);
+
+    $head = ['Participant', 'Comment'];
+    foreach ($slots as $s) {
+        $head[] = $s['kind'] === 'date'
+            ? $s['date'] . ' (all day)'
+            : (new DateTime('@' . $s['start_utc']))->setTimezone($tz)->format('Y-m-d H:i T') . ' (' . (int)$s['duration_min'] . ' min)';
+    }
+
+    $out = fopen('php://temp', 'w+');
+    fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel decodes non-ASCII names
+    fputcsv($out, $head);
+    $responses = responses_map((int)$poll['id']);
+    foreach (participants_for_poll((int)$poll['id']) as $p) {
+        $row = [csv_guard((string)$p['name']), csv_guard((string)$p['comment'])];
+        foreach ($slots as $s) $row[] = $responses[(int)$p['id']][(int)$s['id']] ?? '';
+        fputcsv($out, $row);
+    }
+    $t = tally((int)$poll['id']);
+    foreach (['yes', 'maybe', 'no'] as $c) {
+        $row = ['Total ' . $c, ''];
+        foreach ($slots as $s) $row[] = $t['counts'][(int)$s['id']][$c];
+        fputcsv($out, $row);
+    }
+    rewind($out);
+    return (string)stream_get_contents($out);
+}
+
+function poll_export_csv(string $id): void {
+    [, $poll] = own_poll($id);
+    $name = trim(preg_replace('/[^A-Za-z0-9]+/', '-', $poll['title']), '-') ?: 'poll-results';
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $name . '.csv"');
+    echo poll_results_csv($poll);
+}
+
 /** [participant_id => [slot_id => choice]] */
 function responses_map(int $pollId): array {
     $map = [];

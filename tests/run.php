@@ -70,6 +70,16 @@ ok($t['total'] === 3, 'still 3 participants after edit (no duplicate)');
 ok($t['counts'][$s0]['yes'] === 2, 'slot0 Yes dropped to 2 after Carol changed');
 ok(participant_by_token($pollId, $carolTok)['comment'] === 'changed', 'comment updated via edit token');
 
+// --- CSV export: grid shape, organizer-tz labels, formula-injection guard, Excel BOM ---
+$csv = poll_results_csv(poll_by_id($pollId));
+ok(str_starts_with($csv, "\xEF\xBB\xBF"), 'CSV starts with UTF-8 BOM');
+ok(str_contains($csv, '2026-07-15 14:00 EDT (60 min)'), 'CSV header shows slot in organizer tz with year');
+ok(str_contains($csv, '2026-07-17 (all day)'), 'all-day slot labeled in CSV header');
+ok(str_contains($csv, "Alice,,yes,no,maybe"), 'participant row lists choices per slot');
+ok(str_contains($csv, '"Total yes",,2,1,0'), 'totals row matches tally');
+ok(csv_guard('=SUM(A1)') === "'=SUM(A1)", 'formula cell neutralized');
+ok(csv_guard('Alice') === 'Alice', 'plain cell untouched');
+
 // --- Deadline auto-close ---
 ok(poll_is_closed(['closed' => 0, 'deadline_utc' => time() + 3600]) === false, 'future deadline = open');
 ok(poll_is_closed(['closed' => 0, 'deadline_utc' => time() - 10]) === true, 'past deadline auto-closes');
