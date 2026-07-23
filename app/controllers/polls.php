@@ -286,16 +286,37 @@ function poll_results_grid(array $poll): array {
 /** Choice -> cell fill (hex), taken from the sample document. */
 const EXPORT_FILL = ['yes' => 'B3E5A1', 'maybe' => 'F6F37A', 'no' => 'E4A2A2'];
 
-/** Build an OOXML container (.docx/.xlsx are just zips) in memory from [path => bytes]. */
+/**
+ * Build an OOXML container (.docx/.xlsx are just zips) from [path => bytes].
+ * Pure PHP, STORED (uncompressed) entries — no ext-zip, no temp file, so it
+ * works on hosts without ZipArchive. OOXML accepts stored entries; the parts
+ * are tiny, so skipping compression costs nothing meaningful.
+ */
 function zip_container(array $files): string {
-    $tmp = tempnam(sys_get_temp_dir(), 'tpx');
-    $zip = new ZipArchive();
-    $zip->open($tmp, ZipArchive::OVERWRITE);
-    foreach ($files as $path => $body) $zip->addFromString($path, $body);
-    $zip->close();
-    $bytes = (string)file_get_contents($tmp);
-    @unlink($tmp);
-    return $bytes;
+    $local = '';
+    $central = '';
+    $offset = 0;
+    foreach ($files as $name => $data) {
+        $crc = crc32($data) & 0xFFFFFFFF;
+        $len = strlen($data);
+        $nlen = strlen($name);
+        $lh = "PK\x03\x04" . pack('v', 20) . pack('v', 0) . pack('v', 0)
+            . pack('v', 0) . pack('v', 0)                    // dos mod time, date
+            . pack('V', $crc) . pack('V', $len) . pack('V', $len)
+            . pack('v', $nlen) . pack('v', 0) . $name . $data;
+        $central .= "PK\x01\x02" . pack('v', 20) . pack('v', 20) . pack('v', 0) . pack('v', 0)
+            . pack('v', 0) . pack('v', 0)                    // dos mod time, date
+            . pack('V', $crc) . pack('V', $len) . pack('V', $len)
+            . pack('v', $nlen) . pack('v', 0) . pack('v', 0) // name, extra, comment lengths
+            . pack('v', 0) . pack('v', 0) . pack('V', 0)     // disk start, internal + external attrs
+            . pack('V', $offset) . $name;
+        $local .= $lh;
+        $offset += strlen($lh);
+    }
+    $n = count($files);
+    return $local . $central . "PK\x05\x06" . pack('v', 0) . pack('v', 0)
+        . pack('v', $n) . pack('v', $n)
+        . pack('V', strlen($central)) . pack('V', strlen($local)) . pack('v', 0);
 }
 
 function col_letter(int $n): string {
