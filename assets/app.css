@@ -105,6 +105,10 @@ button[aria-busy]{opacity:.6;cursor:progress;pointer-events:none}
 .head-actions{display:flex;gap:8px;flex-wrap:wrap}
 
 /* Dropdown menu (native <details>) */
+/* Lift the head above later siblings so an open menu isn't covered by the
+   results grid — each main.wrap child gets its own stacking context from the
+   entrance animation, which would otherwise trap the menu's z-index. */
+.page-head{position:relative;z-index:5}
 .menu{position:relative}
 .menu>summary{list-style:none;cursor:pointer}
 .menu>summary::-webkit-details-marker{display:none}
