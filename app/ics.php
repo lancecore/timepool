@@ -18,8 +18,9 @@ function ics_for_slot(array $poll, array $slot): string {
     $stamp   = gmdate('Ymd\THis\Z');
 
     if ($slot['kind'] === 'date') {
-        $start = (new DateTime($slot['date']))->format('Ymd');
-        $end   = (new DateTime($slot['date']))->modify('+1 day')->format('Ymd');
+        $d     = slot_date_dt($slot) ?? new DateTime('today');
+        $start = $d->format('Ymd');
+        $end   = (clone $d)->modify('+1 day')->format('Ymd');
         $dt = "DTSTART;VALUE=DATE:$start\r\nDTEND;VALUE=DATE:$end";
     } else {
         $dur   = max(1, (int)($slot['duration_min'] ?: 60));
@@ -42,8 +43,9 @@ function ics_for_slot(array $poll, array $slot): string {
 
 function gcal_link(array $poll, array $slot): string {
     if ($slot['kind'] === 'date') {
-        $start = (new DateTime($slot['date']))->format('Ymd');
-        $end   = (new DateTime($slot['date']))->modify('+1 day')->format('Ymd');
+        $d     = slot_date_dt($slot) ?? new DateTime('today');
+        $start = $d->format('Ymd');
+        $end   = (clone $d)->modify('+1 day')->format('Ymd');
         $dates = "$start/$end";
     } else {
         $dur   = max(1, (int)($slot['duration_min'] ?: 60));
@@ -62,8 +64,9 @@ function gcal_link(array $poll, array $slot): string {
 
 function outlook_link(array $poll, array $slot): string {
     if ($slot['kind'] === 'date') {
-        $start = (new DateTime($slot['date']))->format('Y-m-d');
-        $end   = (new DateTime($slot['date']))->modify('+1 day')->format('Y-m-d');
+        $d     = slot_date_dt($slot) ?? new DateTime('today');
+        $start = $d->format('Y-m-d');
+        $end   = (clone $d)->modify('+1 day')->format('Y-m-d');
         $allday = 'true';
     } else {
         $dur   = max(1, (int)($slot['duration_min'] ?: 60));

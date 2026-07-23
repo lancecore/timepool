@@ -655,6 +655,15 @@ db()->prepare('INSERT INTO slots(poll_id, kind, start_utc, date, duration_min, s
 ok(in_array("=cmd|' /C calc'!A0", $sdHeaders, true), 'unparseable legacy slot date exports raw instead of throwing');
 ok(strpos(poll_results_csv(poll_by_id($sdId)), "\"'=cmd|' /C calc'!A0 (all day)\"") !== false, 'legacy slot date is formula-guarded in CSV headers');
 
+// The calendar readers render inside pages, so a throw there would break the whole view.
+$sdLegacy = null;
+foreach (slots_for_poll($sdId) as $s) { if ($s['date'] !== '2026-07-15') $sdLegacy = $s; }
+$sdPoll = poll_by_id($sdId);
+ok(str_contains(ics_for_slot($sdPoll, $sdLegacy), 'DTSTART;VALUE=DATE:' . date('Ymd')), 'legacy slot date falls back to today in ICS instead of throwing');
+ok(str_contains(gcal_link($sdPoll, $sdLegacy), 'dates=' . date('Ymd')), 'legacy slot date does not throw in the Google Calendar link');
+ok(str_contains(outlook_link($sdPoll, $sdLegacy), 'startdt=' . date('Y-m-d')), 'legacy slot date does not throw in the Outlook link');
+ok(str_contains(slot_label($sdLegacy, 'UTC'), 'all day'), 'legacy slot date still renders a label');
+
 echo "\n$pass passed, $fail failed\n";
 @unlink($tmp); @unlink($tmp . '-wal'); @unlink($tmp . '-shm');
 exit($fail ? 1 : 0);

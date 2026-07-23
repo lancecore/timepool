@@ -258,10 +258,22 @@ function tally(int $pollId): array {
     return ['counts' => $counts, 'best' => $best, 'total' => response_count($pollId)];
 }
 
+/**
+ * An all-day slot's stored date, or null when it is not a real Y-m-d.
+ * replace_slots() rejects those on write, but rows saved before that guard can
+ * still hold junk and every reader formats this value directly — so each one
+ * goes through here rather than calling DateTime, which throws on bad input.
+ */
+function slot_date_dt(array $slot): ?DateTime {
+    $raw = (string)($slot['date'] ?? '');
+    $d = DateTime::createFromFormat('!Y-m-d', $raw);
+    return ($d && $d->format('Y-m-d') === $raw) ? $d : null;
+}
+
 /** Server-side fallback label in the organizer's timezone; JS re-renders in the viewer's zone. */
 function slot_label(array $slot, string $tz): string {
     if ($slot['kind'] === 'date') {
-        $d = DateTime::createFromFormat('Y-m-d', $slot['date']) ?: new DateTime('now');
+        $d = slot_date_dt($slot) ?? new DateTime('today');
         return $d->format('D, M j') . ' · all day';
     }
     $dt = (new DateTime('@' . $slot['start_utc']))->setTimezone(new DateTimeZone($tz));

@@ -258,8 +258,8 @@ function poll_results_grid(array $poll): array {
     $headers = ['Name'];
     foreach ($slots as $s) {
         if ($s['kind'] === 'date') {
-            // Rows stored before replace_slots() validated dates would throw here; show them raw instead.
-            $d = DateTime::createFromFormat('Y-m-d', (string)$s['date']);
+            // An unparseable legacy date has no sensible format; show it raw rather than throwing.
+            $d = slot_date_dt($s);
             $headers[] = $d ? $d->format('D, M j') : (string)$s['date'];
         } else {
             $headers[] = (new DateTime('@' . $s['start_utc']))->setTimezone($tz)->format('D, M j, g:i A') . ' (' . (int)$s['duration_min'] . ' min)';
