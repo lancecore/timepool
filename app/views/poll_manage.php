@@ -15,7 +15,14 @@ $publicUrl = absolute_url('/p/' . $poll['public_token']);
     </p>
   </div>
   <div class="head-actions">
-    <a class="btn btn-ghost btn-sm" href="<?= url('/polls/' . $poll['id'] . '/export.csv') ?>">Export CSV</a>
+    <details class="menu">
+      <summary class="btn btn-ghost btn-sm">Export ▾</summary>
+      <div class="menu-list">
+        <a href="<?= url('/polls/' . $poll['id'] . '/export.csv') ?>">CSV (.csv)</a>
+        <a href="<?= url('/polls/' . $poll['id'] . '/export.xlsx') ?>">Excel (.xlsx)</a>
+        <a href="<?= url('/polls/' . $poll['id'] . '/export.docx') ?>">Word (.docx)</a>
+      </div>
+    </details>
     <a class="btn btn-ghost btn-sm" href="<?= url('/polls/' . $poll['id'] . '/edit') ?>">Edit</a>
     <form method="post" action="<?= url('/polls/' . $poll['id'] . '/duplicate') ?>" class="inline"><?= csrf_field() ?><button class="btn btn-ghost btn-sm">Duplicate</button></form>
     <form method="post" action="<?= url('/polls/' . $poll['id'] . '/close') ?>" class="inline">

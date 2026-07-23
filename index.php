@@ -25,6 +25,8 @@ $routes = [
     ['GET',  '#^/polls/(\d+)$#',                   'poll_manage'],
     ['GET',  '#^/polls/(\d+)/edit$#',              'poll_edit'],
     ['GET',  '#^/polls/(\d+)/export\.csv$#',       'poll_export_csv'],
+    ['GET',  '#^/polls/(\d+)/export\.xlsx$#',      'poll_export_xlsx'],
+    ['GET',  '#^/polls/(\d+)/export\.docx$#',      'poll_export_docx'],
     ['POST', '#^/polls/(\d+)/edit$#',              'poll_update'],
     ['POST', '#^/polls/(\d+)/duplicate$#',         'poll_duplicate'],
     ['POST', '#^/polls/(\d+)/close$#',             'poll_close'],

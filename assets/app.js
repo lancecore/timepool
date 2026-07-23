@@ -11,6 +11,13 @@
     try { localStorage.setItem('tp-theme', cur); } catch (_) {}
   });
 
+  /* ---- Close export dropdowns on outside click ---- */
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('details.menu[open]').forEach(function (d) {
+      if (!d.contains(e.target)) d.removeAttribute('open');
+    });
+  });
+
   /* ---- Timezone handling ---- */
   function detectTz() {
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (_) { return 'UTC'; }

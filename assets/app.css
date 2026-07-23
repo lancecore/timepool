@@ -104,6 +104,16 @@ button[aria-busy]{opacity:.6;cursor:progress;pointer-events:none}
 .page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin:26px 0 18px;flex-wrap:wrap}
 .head-actions{display:flex;gap:8px;flex-wrap:wrap}
 
+/* Dropdown menu (native <details>) */
+.menu{position:relative}
+.menu>summary{list-style:none;cursor:pointer}
+.menu>summary::-webkit-details-marker{display:none}
+.menu-list{position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:150px;
+  background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;
+  box-shadow:var(--shadow);padding:4px;display:flex;flex-direction:column}
+.menu-list a{padding:8px 12px;border-radius:6px;color:var(--ink);font-size:.9rem;text-decoration:none}
+.menu-list a:hover{background:var(--surface-2)}
+
 /* Forms */
 .stack{display:flex;flex-direction:column;gap:14px}
 label{font-weight:600;font-size:.92rem;color:var(--ink);display:block}

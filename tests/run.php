@@ -80,6 +80,30 @@ ok(str_contains($csv, '"Total yes",,2,1,0'), 'totals row matches tally');
 ok(csv_guard('=SUM(A1)') === "'=SUM(A1)", 'formula cell neutralized');
 ok(csv_guard('Alice') === 'Alice', 'plain cell untouched');
 
+// --- Styled exports (Word .docx / Excel .xlsx): valid OOXML zips, color-coded grid ---
+$zipEntry = function (string $bytes, string $name): string {
+    $f = tempnam(sys_get_temp_dir(), 'tpz');
+    file_put_contents($f, $bytes);
+    $z = new ZipArchive();
+    $z->open($f);
+    $out = (string)$z->getFromName($name);
+    $z->close();
+    @unlink($f);
+    return $out;
+};
+$docx = poll_results_docx(poll_by_id($pollId));
+ok(str_starts_with($docx, 'PK'), 'DOCX is a zip container');
+$ddoc = $zipEntry($docx, 'word/document.xml');
+ok(str_contains($ddoc, 'Alice'), 'DOCX table lists a participant');
+ok(str_contains($ddoc, 'If need be'), 'DOCX uses the friendly Maybe label');
+ok(str_contains($ddoc, 'B3E5A1'), 'DOCX Yes cells carry the green fill from the sample');
+ok(str_contains($ddoc, 'Total Yes'), 'DOCX has the per-choice totals row');
+$xlsx = poll_results_xlsx(poll_by_id($pollId));
+ok(str_starts_with($xlsx, 'PK'), 'XLSX is a zip container');
+ok(str_contains($zipEntry($xlsx, 'xl/styles.xml'), 'FFB3E5A1'), 'XLSX styles define the green Yes fill');
+$xsheet = $zipEntry($xlsx, 'xl/worksheets/sheet1.xml');
+ok(str_contains($xsheet, 'Alice') && str_contains($xsheet, 'inlineStr'), 'XLSX sheet lists a participant as an inline string');
+
 // --- Deadline auto-close ---
 ok(poll_is_closed(['closed' => 0, 'deadline_utc' => time() + 3600]) === false, 'future deadline = open');
 ok(poll_is_closed(['closed' => 0, 'deadline_utc' => time() - 10]) === true, 'past deadline auto-closes');
