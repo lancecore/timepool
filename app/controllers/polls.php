@@ -210,7 +210,7 @@ function poll_results_csv(array $poll): string {
     $head = ['Participant', 'Comment'];
     foreach ($slots as $s) {
         $head[] = $s['kind'] === 'date'
-            ? $s['date'] . ' (all day)'
+            ? csv_guard((string)$s['date'] . ' (all day)')
             : (new DateTime('@' . $s['start_utc']))->setTimezone($tz)->format('Y-m-d H:i T') . ' (' . (int)$s['duration_min'] . ' min)';
     }
 
@@ -257,9 +257,13 @@ function poll_results_grid(array $poll): array {
 
     $headers = ['Name'];
     foreach ($slots as $s) {
-        $headers[] = $s['kind'] === 'date'
-            ? (new DateTime($s['date']))->format('D, M j')
-            : (new DateTime('@' . $s['start_utc']))->setTimezone($tz)->format('D, M j, g:i A') . ' (' . (int)$s['duration_min'] . ' min)';
+        if ($s['kind'] === 'date') {
+            // Rows stored before replace_slots() validated dates would throw here; show them raw instead.
+            $d = DateTime::createFromFormat('Y-m-d', (string)$s['date']);
+            $headers[] = $d ? $d->format('D, M j') : (string)$s['date'];
+        } else {
+            $headers[] = (new DateTime('@' . $s['start_utc']))->setTimezone($tz)->format('D, M j, g:i A') . ' (' . (int)$s['duration_min'] . ' min)';
+        }
     }
 
     $responses = responses_map((int)$poll['id']);

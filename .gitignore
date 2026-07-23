@@ -5,6 +5,11 @@
 *.sqlite-shm
 _tp_pkg.zip
 
+# ── Exported poll results (real respondent names/comments — keep out of the repo) ──
+/docs/*.csv
+/docs/*.docx
+/docs/*.xlsx
+
 # ── Marketing site (deployed separately to Netlify, not part of the app) ──
 /site/
 

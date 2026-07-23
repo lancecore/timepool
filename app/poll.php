@@ -55,6 +55,9 @@ function replace_slots(int $pollId, string $tz, array $rows): void {
         if ($date === '') continue;
         $kind = ($row['kind'] ?? 'datetime') === 'date' ? 'date' : 'datetime';
         if ($kind === 'date') {
+            // Readers (exports, ICS) format this value raw, so only a real Y-m-d may be stored.
+            $d = DateTime::createFromFormat('Y-m-d', $date);
+            if (!$d || $d->format('Y-m-d') !== $date) continue;
             $ins->execute([$pollId, 'date', null, $date, null, $sort++]);
         } else {
             $time = trim((string)($row['time'] ?? ''));

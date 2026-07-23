@@ -639,6 +639,22 @@ save_response($vf1Poll, 'Xan', '', [(int)$vf1Slots[0]['id'] => 'no'], '3.3.3.4',
 ok(count($vf1Parts) === 2, 'flag-1: full participant list returned');
 ok(count($vf1Resp) === 2, 'flag-1: full responses map returned');
 
+// --- All-day slot dates: validated on write, never trusted on read ---
+$sdId = create_poll($uid, ['title' => 'Slot dates', 'organizer_tz' => 'UTC', 'blind' => 0], [
+    ['kind' => 'date', 'date' => "=cmd|' /C calc'!A0"], // formula payload
+    ['kind' => 'date', 'date' => '2026-02-30'],         // well-formed but not a real date
+    ['kind' => 'date', 'date' => '2026-07-15'],
+]);
+$sdSlots = slots_for_poll($sdId);
+ok(count($sdSlots) === 1 && $sdSlots[0]['date'] === '2026-07-15', 'invalid all-day slot dates rejected on write');
+
+// A row written before that guard existed must still export, not throw.
+db()->prepare('INSERT INTO slots(poll_id, kind, start_utc, date, duration_min, sort) VALUES(?,?,?,?,?,?)')
+    ->execute([$sdId, 'date', null, "=cmd|' /C calc'!A0", null, 9]);
+[$sdHeaders] = poll_results_grid(poll_by_id($sdId));
+ok(in_array("=cmd|' /C calc'!A0", $sdHeaders, true), 'unparseable legacy slot date exports raw instead of throwing');
+ok(strpos(poll_results_csv(poll_by_id($sdId)), "\"'=cmd|' /C calc'!A0 (all day)\"") !== false, 'legacy slot date is formula-guarded in CSV headers');
+
 echo "\n$pass passed, $fail failed\n";
 @unlink($tmp); @unlink($tmp . '-wal'); @unlink($tmp . '-shm');
 exit($fail ? 1 : 0);
